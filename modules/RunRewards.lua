@@ -176,8 +176,8 @@ return function(ctx)
         end
         table.sort(ids, function(a, b) return tonumber(a) < tonumber(b) end)
         for _, id in ipairs(ids) do
-            add(materialName(id), "Materials", materialTotals[id])
-            if #rewards > 0 then
+            if materialTotals[id] > 0 then
+                add(materialName(id), "Materials", materialTotals[id])
                 rewards[#rewards].Key = "material:" .. id
             end
         end
