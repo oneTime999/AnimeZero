@@ -5,6 +5,7 @@ return function(ctx)
     local lastSent = {}
     local subscribed, subscription = false, nil
     local lastSubscribeAttempt = -math.huge
+    local lastGlobalAttempt = -math.huge
 
     local function readAtom(atom)
         if atom == nil then return nil end
@@ -42,7 +43,7 @@ return function(ctx)
                     return
                 end
 
-                local record = {drop = drop}
+                local record = {drop = drop, addedAt = os.clock()}
                 activeDrops[dropId] = record
                 return function()
                     if activeDrops[dropId] == record then
@@ -82,23 +83,35 @@ return function(ctx)
                 if root and humanoid and humanoid.Health > 0
                     and remote and remote:IsA("RemoteEvent") then
                     local now = os.clock()
-                    local collected = 0
-
-                    for dropId, record in pairs(activeDrops) do
-                        if collected >= 2 then break end
-                        local drop = record.drop
-                        local kind = drop and readAtom(drop.kind)
-                        local position = drop and readAtom(drop.position)
-
-                        if (kind == "cash" or kind == "health")
-                            and typeof(position) == "Vector3"
-                            and (root.Position - position).Magnitude <= 12
-                            and now - (lastSent[dropId] or -math.huge) >= 2 then
-                            lastSent[dropId] = now
+                    -- The game's pickup animation lasts roughly 1-2 seconds.
+                    -- Let its controller recover the drop normally first.
+                    if now - lastGlobalAttempt >= 0.4 then
+                        local nearestId, nearestDistance = nil, math.huge
+                        for dropId, record in pairs(activeDrops) do
+                            local drop = record.drop
+                            local kind = drop and readAtom(drop.kind)
+                            local position = drop and readAtom(drop.position)
+                            if (kind == "cash" or kind == "health")
+                                and typeof(position) == "Vector3"
+                                and now - record.addedAt >= 2
+                                and now - (lastSent[dropId] or -math.huge) >= 4 then
+                                local distance = (root.Position - position).Magnitude
+                                if distance <= 12 and distance < nearestDistance then
+                                    nearestId = dropId
+                                    nearestDistance = distance
+                                end
+                            end
+                        end
+                        if nearestId ~= nil then
+                            lastGlobalAttempt = now
                             local ok = pcall(function()
-                                remote:FireServer(dropId)
+                                remote:FireServer(nearestId)
                             end)
-                            if ok then collected += 1 end
+                            -- Sending does not prove server acceptance.
+                            -- Retry a still-active drop at most every 4 seconds.
+                            if ok then
+                                lastSent[nearestId] = now
+                            end
                         end
                     end
                 end
