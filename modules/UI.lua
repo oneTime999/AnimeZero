@@ -2,6 +2,7 @@ return function(ctx)
     local Players, RS, WS, RunService, VU = ctx.Players, ctx.RS, ctx.WS, ctx.RunService, ctx.VU
     local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
+    local Zzzz = ctx.ZzzzWorld
     local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
     local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
@@ -13,7 +14,7 @@ return function(ctx)
 
     local Window = Fluent:CreateWindow({
         Title = "Pcd Fnl Boss",
-        SubTitle = "HxH Story & Raids",
+        SubTitle = "Story, Raids & Zzzz World",
         TabWidth = 150,
         Size = UDim2.fromOffset(570, 480),
         Acrylic = false,
@@ -23,12 +24,14 @@ return function(ctx)
 
     local Story = Window:AddTab({Title = "Story", Icon = "book-open"})
     local Raids = Window:AddTab({Title = "Raids", Icon = "swords"})
+    local ZzzzTab = Window:AddTab({Title = "Auto Zzzz World", Icon = "infinity"})
     local SkillsTab = Window:AddTab({Title = "Skills", Icon = "flame"})
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
     local Profiles = Window:AddTab({Title = "Profiles", Icon = "save"})
 
     local storyToggle
     local raidToggle
+    local zzzzToggle
 
     Story:AddSection("HxH Story")
 
@@ -43,6 +46,9 @@ return function(ctx)
                 Raid.Target = nil
                 Raid.Status = "Disabled"
                 if raidToggle then raidToggle:SetValue(false) end
+            end
+            if value and Zzzz.Enabled and zzzzToggle then
+                zzzzToggle:SetValue(false)
             end
             if value then
                 S.OldModels = setmetatable({}, {__mode = "k"})
@@ -85,6 +91,9 @@ return function(ctx)
             if value and S.Enabled then
                 if storyToggle then storyToggle:SetValue(false) end
             end
+            if value and Zzzz.Enabled and zzzzToggle then
+                zzzzToggle:SetValue(false)
+            end
             Raid.Enabled = value
             Raid.Target = nil
             Raid.BossImmune = true
@@ -102,6 +111,38 @@ return function(ctx)
                     skill.Last = -math.huge
                 end
             elseif not S.Enabled then
+                F.releaseHold()
+                F.restoreCollisions()
+            end
+        end
+    })
+
+
+    ZzzzTab:AddSection("Infinite Waves")
+
+    zzzzToggle = ZzzzTab:AddToggle("HxH_ZzzzWorld", {
+        Title = "Auto Zzzz World",
+        Description = "Automatically defeat enemies as each wave spawns",
+        Default = false,
+        Callback = function(value)
+            if value and S.Enabled and storyToggle then
+                storyToggle:SetValue(false)
+            end
+            if value and Raid.Enabled and raidToggle then
+                raidToggle:SetValue(false)
+            end
+
+            Zzzz.Enabled = value
+            Zzzz.Target = nil
+
+            if value then
+                F.cancelTravel()
+                F.releaseHold()
+                S.LastM1 = 0
+                for _, skill in ipairs(Skill) do
+                    skill.Last = -math.huge
+                end
+            elseif not S.Enabled and not Raid.Enabled then
                 F.releaseHold()
                 F.restoreCollisions()
             end
