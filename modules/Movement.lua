@@ -82,6 +82,15 @@ return function(ctx)
         local char, root = F.character()
         if not char or not root then return end
         local now = os.clock()
+        -- Recover if the server keeps rejecting the tween destination.
+        -- Otherwise a stale S.Travel can block Story indefinitely.
+        if now - trip.Started > trip.Duration + 5 then
+            S.Travel = nil
+            S.ArrivedTag = nil
+            F.releaseHold()
+            S.Status = "Retrying stalled travel"
+            return
+        end
         local alpha = trip.Duration > 0
             and math.clamp((now - trip.Started) / trip.Duration, 0, 1)
             or 1
