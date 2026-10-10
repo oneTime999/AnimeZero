@@ -170,8 +170,27 @@ return function(ctx)
         end
 
         if target and F.isStale(target, now) then
+            -- Skip the unresponsive target before trying others.
+            -- Previously the next scan immediately selected the same mob again.
             S.Target = nil
-            return nil
+            local alternative, closest = nil, math.huge
+            for _, model in ipairs(folder:GetChildren()) do
+                if model:IsA("Model") and F.living(model)
+                    and not S.Ignored[model] then
+                    local part = F.partOf(model)
+                    if part then
+                        local distance = (root.Position - part.Position).Magnitude
+                        if distance < closest then
+                            closest, alternative = distance, model
+                        end
+                    end
+                end
+            end
+            if alternative then
+                S.Target = alternative
+                S.TargetSince = now
+            end
+            return alternative
         end
 
         return target
@@ -195,13 +214,16 @@ return function(ctx)
         if not F.livingEnemyExists() then return nil end
 
         local now = os.clock()
-        if now - lastEnemyRecheck >= 0.6 then
+        -- Reconsider skipped mobs only after trying other targets for a while.
+        -- Resetting the list every 0.6 s caused a permanent retry loop.
+        if now - lastEnemyRecheck >= 4 then
             S.Ignored = {}
             S.TargetProgress = setmetatable({}, {__mode = "k"})
             S.Target = nil
             lastEnemyRecheck = now
+            return F.findEnemy()
         end
-        return F.findEnemy()
+        return nil
     end
 
 end
