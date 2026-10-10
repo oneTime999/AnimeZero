@@ -19,15 +19,15 @@ return function(ctx)
     end
 
     function F.raidReplay()
+        local now = os.clock()
+        if now < (Raid.NextReplayAt or 0) then return end
+        Raid.NextReplayAt = now + 8
+
         local remote = RS:FindFirstChild("endAction")
         if not remote or not remote:IsA("RemoteEvent") then
             Raid.Status = "Waiting for replay remote"
             return
         end
-
-        local now = os.clock()
-        if now < (Raid.NextReplayAt or 0) then return end
-        Raid.NextReplayAt = now + 8
         local ok = pcall(function()
             remote:FireServer(buffer.fromstring("\001"))
         end)
