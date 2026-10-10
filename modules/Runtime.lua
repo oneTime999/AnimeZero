@@ -72,6 +72,9 @@ return function(ctx)
 
     task.spawn(function()
         while S.Alive and not Fluent.Unloaded do
+            if ctx.EnforceFarmExclusivity then
+                pcall(ctx.EnforceFarmExclusivity)
+            end
             local ok, err = pcall(function()
                 if S.Enabled then F.syncHUDProgress() end
                 F.step()
