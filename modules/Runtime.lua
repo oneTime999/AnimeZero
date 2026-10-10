@@ -150,9 +150,11 @@ return function(ctx)
         local now = os.clock()
         if mode == "Story" then
             S.Status = "Retrying Story after an error"
+        elseif mode == "HUD sync" then
+            S.Status = "HUD refresh failed; Story still running"
         elseif mode == "Raid" then
             Raid.Status = "Retrying Raid after an error"
-        else
+        elseif mode == "Zzz" then
             Zzzz.Status = "Retrying Zzz World after an error"
         end
         if now - (lastStepErrorAt[mode] or -math.huge) >= 12 then
