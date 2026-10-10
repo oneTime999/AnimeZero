@@ -145,7 +145,7 @@ return function(ctx)
         if not integer then integer, fraction = str, "" end
         local done
         repeat
-            integer, done = integer:gsub("^(%-?%d+)(%d%d%d)", "%1,%2")
+            integer, done = integer:gsub("(%d)(%d%d%d)$", "%1,%2")
         until done == 0
         return integer .. fraction
     end
@@ -323,9 +323,36 @@ return function(ctx)
         return nil, "Request sent; delivery status unavailable"
     end
 
+    local function rewardLines(report, isTest)
+        local lines = {}
+        for _, item in ipairs(report.Rewards) do
+            if Config.Fields[item.Category] then
+                local raw = item.Raw or ""
+                local label
+                if item.Numeric then
+                    label = "+" .. formatNumber(item.Amount)
+                    if Config.FarmTotals and not isTest then
+                        local key = item.Category .. "|" .. item.Name
+                        label = label .. " (" .. formatNumber(Session.Totals[key] or item.Amount) .. " total)"
+                    end
+                else
+                    label = raw ~= "" and raw or "x1"
+                end
+                table.insert(lines, item.Name .. ": " .. label)
+            end
+        end
+        return lines
+    end
+
+    local function formatDuration(seconds)
+        seconds = math.max(0, math.floor(seconds))
+        return string.format("%02d:%02d:%02d",
+            math.floor(seconds / 3600), math.floor(seconds / 60) % 60,
+            seconds % 60)
+    end
+
     local function send(report, isTest)
-        local stats = report.Stats
-        local options = Config.Fields
+        local stats, options = report.Stats, Config.Fields
         local fields = {}
         local function addField(enabled, name, value, inline)
             if enabled then
@@ -341,13 +368,23 @@ return function(ctx)
         addField(options.Duration, "Duration", stats["Play Time"])
         addField(options.Kills, "Enemies Killed", stats["Enemies Killed"])
         addField(options.Damage, "Damage Dealt", stats["Damage Dealt"])
-        addField(options.EXP, "EXP Earned", stats["EXP Earned"])
-        addField(options.GemsEarned, "Gems Earned", stats["Gems Earned"])
+
+        local earnedEXP = stats["EXP Earned"]
+        if earnedEXP and Config.FarmTotals and not isTest then
+            earnedEXP = earnedEXP .. " (" .. formatNumber(Session.EXP) .. " total)"
+        end
+        addField(options.EXP, "EXP Earned", earnedEXP)
+
+        local earnedGems = stats["Gems Earned"]
+        if earnedGems and Config.FarmTotals and not isTest then
+            earnedGems = earnedGems .. " (" .. formatNumber(Session.GemsEarned) .. " total)"
+        end
+        addField(options.GemsEarned, "Gems Earned", earnedGems)
         addField(options.MVP and report.MVP ~= "", "MVP", report.MVP)
 
         if options.Rewards then
-            local rewards = #report.Rewards > 0
-                and table.concat(report.Rewards, "\n")
+            local lines = rewardLines(report, isTest)
+            local rewards = #lines > 0 and table.concat(lines, "\n")
                 or "No rewards listed"
             if #rewards > 1000 then
                 rewards = rewards:sub(1, 995) .. "..."
@@ -355,28 +392,41 @@ return function(ctx)
             addField(true, "Rewards", rewards, false)
         end
 
+        if Config.FarmTotals and not isTest then
+            addField(true, "Farm Session",
+                "Rounds: " .. Session.Rounds
+                .. " | Victories: " .. Session.Wins
+                .. " | Defeats: " .. Session.Losses
+                .. "\nTotal play time: " .. formatDuration(Session.Seconds),
+                false)
+        end
+
         local payload = {
             title = isTest and "AnimeZero - Test Notification"
                 or "AnimeZero - Match Results",
             color = isTest and 3447003
                 or (options.Result and (report.Win and 5763719 or 15548997) or 9807270),
-            description = isTest and "Preview only - these are example values, not real drops." or nil,
+            description = isTest and "Preview only - example values, not real rewards." or nil,
             fields = fields,
             footer = {text = isTest and "Webhook connection test"
                 or "EndScreen - Match completed"}
         }
+        if #fields == 0 then
+            payload.description = (payload.description or "")
+                .. "\nNo fields selected for this notification."
+        end
         return postEmbed(payload)
     end
 
     local function testReport()
-        local rewards = {}
-        local options = Config.Fields
-        if options.Coins then table.insert(rewards, "Coins ×1000") end
-        if options.Dice then table.insert(rewards, "Dice ×3") end
-        if options.LuckyDice then table.insert(rewards, "Lucky Dice ×1") end
-        if options.Gems then table.insert(rewards, "Gems ×200") end
-        if options.EnchantGems then table.insert(rewards, "Enchant Gems ×5") end
-        if options.Items then table.insert(rewards, "Curse Ball ×2") end
+        local examples = {
+            {Name = "Coins", Category = "Coins", Amount = 1000, Numeric = true, Raw = "$1000"},
+            {Name = "Dice", Category = "Dice", Amount = 3, Numeric = true, Raw = "x3"},
+            {Name = "Lucky Dice", Category = "LuckyDice", Amount = 1, Numeric = true, Raw = "x1"},
+            {Name = "Gems", Category = "Gems", Amount = 200, Numeric = true, Raw = "x200"},
+            {Name = "Enchant Gems", Category = "EnchantGems", Amount = 5, Numeric = true, Raw = "x5"},
+            {Name = "Curse Ball", Category = "Items", Amount = 2, Numeric = true, Raw = "x2"}
+        }
         return {
             Win = true,
             Stats = {
@@ -387,7 +437,7 @@ return function(ctx)
                 ["Gems Earned"] = "200"
             },
             MVP = "Example Player",
-            Rewards = rewards
+            Rewards = examples
         }
     end
 
