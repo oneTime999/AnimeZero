@@ -191,16 +191,11 @@ return function(ctx)
     Settings:AddSection("Movement")
 
     Settings:AddDropdown("V11_Position", {
-        Title = "Enemy Position", Description = "Where to stay relative to the target",
+        Title = "Enemy Position",
+        Description = "Below attacks upward through the ground (requires Noclip); Behind is behind the target",
         Values = {"Behind", "Above", "Inside", "Below", "Front", "Left", "Right"},
-        Default = "Behind",
+        Default = "Below",
         Callback = function(value) C.Position = value end
-    })
-    Settings:AddDropdown("V11_RubblePosition", {
-        Title = "Rubble Position", Description = "Attack from inside or above the rubble",
-        Values = {"Inside", "Above"},
-        Default = "Inside",
-        Callback = function(value) C.RubblePosition = value end
     })
     Settings:AddSlider("V11_Distance", {
         Title = "Enemy Distance", Description = "Offset from the target", Min = 1, Max = 12,
