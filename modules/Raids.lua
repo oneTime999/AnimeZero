@@ -103,7 +103,7 @@ return function(ctx)
                 Raid.RoundFinished = false
                 Raid.BossEngaged = false
                 Raid.BossGoneAt = nil
-            elseif Raid.AutoReplay then
+            elseif C.AutoReplay then
                 F.raidReplay()
             else
                 Raid.Status = "Boss defeated"
