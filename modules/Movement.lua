@@ -107,6 +107,8 @@ return function(ctx)
         end
     end
 
+    local lastCombatPositionAt = nil
+
     function F.enemyPosition(enemy)
         local part = F.partOf(enemy)
         if not part then return false end
@@ -135,7 +137,28 @@ return function(ctx)
         if (pos - look).Magnitude < 0.01 then
             look = pos + cf.LookVector
         end
-        return F.setPosition(CFrame.lookAt(pos, look), 0.55, true)
+        local destination = CFrame.lookAt(pos, look)
+
+        if C.TravelMethod == "Tween" then
+            local _, root = F.character()
+            if not root then return false end
+
+            local now = os.clock()
+            local dt = lastCombatPositionAt
+                and math.clamp(now - lastCombatPositionAt, 1 / 60, 0.12)
+                or 1 / 60
+            lastCombatPositionAt = now
+
+            local distance = (root.Position - pos).Magnitude
+            if distance > 0.75 then
+                local alpha = math.min(1, C.TravelSpeed * dt / distance)
+                destination = root.CFrame:Lerp(destination, alpha)
+            end
+        else
+            lastCombatPositionAt = nil
+        end
+
+        return F.setPosition(destination, 0.25, true)
     end
 
     function F.rubbleBounds(rubble)
@@ -215,7 +238,7 @@ return function(ctx)
     end
 
     function F.applyNoclip()
-        if not (S.Enabled or Raid.Enabled) or not C.Noclip then return end
+        if not (S.Enabled or Raid.Enabled or ctx.ZzzzWorld.Enabled) or not C.Noclip then return end
         local char = Player.Character
         if not char then return end
         for _, part in ipairs(char:GetDescendants()) do
