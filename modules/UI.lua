@@ -33,6 +33,48 @@ return function(ctx)
     local raidToggle
     local zzzzToggle
 
+    local function switchToMode(selected)
+        ctx.ActiveFarmMode = selected
+
+        if selected ~= "Story" then
+            S.Enabled = false
+            if storyToggle and storyToggle.Value then
+                storyToggle:SetValue(false)
+            end
+        end
+
+        if selected ~= "Raids" then
+            Raid.Enabled = false
+            Raid.Target = nil
+            if raidToggle and raidToggle.Value then
+                raidToggle:SetValue(false)
+            end
+        end
+
+        if selected ~= "Zzz" then
+            Zzzz.Enabled = false
+            Zzzz.Target = nil
+            if zzzzToggle and zzzzToggle.Value then
+                zzzzToggle:SetValue(false)
+            end
+        end
+    end
+
+    ctx.EnforceFarmExclusivity = function()
+        local running = (S.Enabled and 1 or 0)
+            + (Raid.Enabled and 1 or 0)
+            + (Zzzz.Enabled and 1 or 0)
+        if running <= 1 then return end
+
+        local selected = ctx.ActiveFarmMode
+        if selected ~= "Story" and selected ~= "Raids" and selected ~= "Zzz" then
+            selected = S.Enabled and "Story"
+                or Raid.Enabled and "Raids"
+                or "Zzz"
+        end
+        switchToMode(selected)
+    end
+
     Story:AddSection("HxH Story")
 
     storyToggle = Story:AddToggle("V11_Enable", {
@@ -40,16 +82,8 @@ return function(ctx)
         Description = "Clear waves, break rubble, and defeat the final boss",
         Default = false,
         Callback = function(value)
+            if value then switchToMode("Story") end
             S.Enabled = value
-            if value and Raid.Enabled then
-                Raid.Enabled = false
-                Raid.Target = nil
-                Raid.Status = "Disabled"
-                if raidToggle then raidToggle:SetValue(false) end
-            end
-            if value and Zzzz.Enabled and zzzzToggle then
-                zzzzToggle:SetValue(false)
-            end
             if value then
                 S.OldModels = setmetatable({}, {__mode = "k"})
                 S.OldDead = setmetatable({}, {__mode = "k"})
@@ -66,9 +100,12 @@ return function(ctx)
                 end
                 F.toWave(C.FirstBorder, 1)
             else
+                if ctx.ActiveFarmMode == "Story" then
+                    ctx.ActiveFarmMode = nil
+                end
                 F.cancelTravel()
                 F.releaseHold()
-                if S.Phase == "BREAK_RUBBLE" and S.RubbleRef then
+                if not ctx.ActiveFarmMode and S.Phase == "BREAK_RUBBLE" and S.RubbleRef then
                     local prior = C.Noclip
                     C.Noclip = false
                     F.rubblePosition(S.RubbleRef)
@@ -88,13 +125,11 @@ return function(ctx)
         Description = "Clear mobs and attack the boss when vulnerable",
         Default = false,
         Callback = function(value)
-            if value and S.Enabled then
-                if storyToggle then storyToggle:SetValue(false) end
-            end
-            if value and Zzzz.Enabled and zzzzToggle then
-                zzzzToggle:SetValue(false)
-            end
+            if value then switchToMode("Raids") end
             Raid.Enabled = value
+            if not value and ctx.ActiveFarmMode == "Raids" then
+                ctx.ActiveFarmMode = nil
+            end
             Raid.Target = nil
             Raid.BossImmune = true
             Raid.BossPresent = false
@@ -125,15 +160,12 @@ return function(ctx)
         Description = "Automatically defeat enemies as each wave spawns",
         Default = false,
         Callback = function(value)
-            if value and S.Enabled and storyToggle then
-                storyToggle:SetValue(false)
-            end
-            if value and Raid.Enabled and raidToggle then
-                raidToggle:SetValue(false)
-            end
-
+            if value then switchToMode("Zzz") end
             Zzzz.Enabled = value
             Zzzz.Target = nil
+            if not value and ctx.ActiveFarmMode == "Zzz" then
+                ctx.ActiveFarmMode = nil
+            end
 
             if value then
                 F.cancelTravel()
