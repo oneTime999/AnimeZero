@@ -66,8 +66,15 @@ return function(ctx)
                     if area and wave and total then
                         if not uiArea or area == S.BorderNumber then
                             uiArea, uiWave, uiTotal = area, tonumber(wave), tonumber(total)
-                            detected = value:find("nightmare", 1, true) and "Nightmare"
-                                or (value:find("easy", 1, true) and "Easy" or nil)
+                            if value:find("nightmare", 1, true) then
+                                detected = "Nightmare"
+                            elseif value:find("hard", 1, true) then
+                                detected = "Hard"
+                            elseif value:find("medium", 1, true) then
+                                detected = "Medium"
+                            elseif value:find("easy", 1, true) then
+                                detected = "Easy"
+                            end
                         end
                         if area == S.BorderNumber then break end
                     end
@@ -88,12 +95,9 @@ return function(ctx)
             S.CachedHUDWave = nil
         end
 
-        if C.DifficultyMode ~= "Automatic" then
-            S.Difficulty = C.DifficultyMode
-            S.ExpectedSubWaves = C.DifficultyMode == "Nightmare" and 2 or 1
-        elseif uiTotal then
+        if uiTotal then
             S.Difficulty = detected or (uiTotal >= 2 and "Nightmare" or "Easy")
-            S.ExpectedSubWaves = uiTotal
+            S.ExpectedSubWaves = S.Difficulty == "Nightmare" and 2 or 1
         end
         return S.Difficulty
     end
