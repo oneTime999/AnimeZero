@@ -76,6 +76,57 @@ return function(ctx)
         return nil
     end
 
+    local materialConfig, materialAttempt = nil, -math.huge
+    local function getMaterialConfig()
+        if materialConfig then return materialConfig end
+        if os.clock() - materialAttempt < 10 then return nil end
+        materialAttempt = os.clock()
+        local root = RS:FindFirstChild("assets")
+        local folder = root and root:FindFirstChild("config")
+        local script = folder and folder:FindFirstChild("materialConfig")
+        if not (script and script:IsA("ModuleScript")) then return nil end
+        local ok, config = pcall(require, script)
+        if ok and type(config) == "table" then
+            materialConfig = config
+        end
+        return materialConfig
+    end
+
+    local function materialName(id)
+        local config = getMaterialConfig()
+        local entry = config and (config[id] or config[tonumber(id)])
+        local name
+        if type(entry) == "string" then
+            name = entry
+        elseif type(entry) == "table" then
+            for _, key in ipairs({
+                "DisplayName", "displayName", "Name", "name",
+                "Title", "title", "ItemName", "MaterialName"
+            }) do
+                if type(entry[key]) == "string" and entry[key] ~= "" then
+                    name = entry[key]
+                    break
+                end
+            end
+        elseif typeof(entry) == "Instance" then
+            for _, key in ipairs({"DisplayName", "Name", "Title"}) do
+                local value = key == "Name" and entry.Name
+                    or entry:GetAttribute(key)
+                if type(value) == "string" and value ~= "" then
+                    name = value
+                    break
+                end
+            end
+        end
+        if type(name) == "string" then
+            name = name:match("^%s*(.-)%s*$")
+            if name ~= "" and not name:match("^%d+$") then
+                return name
+            end
+        end
+        return "Material #" .. tostring(id)
+    end
+
     ctx.ReadMatchStore = function()
         local source = getModule()
         if not source then return nil, "unavailable", nil, loadError end
@@ -107,7 +158,7 @@ return function(ctx)
         local function add(label, category, n)
             if n > 0 then
                 table.insert(rewards, {
-                    Name = label, Category = category, Amount = n
+                    Name = label, Key = label, Category = category, Amount = n
                 })
             end
         end
@@ -125,7 +176,10 @@ return function(ctx)
         end
         table.sort(ids, function(a, b) return tonumber(a) < tonumber(b) end)
         for _, id in ipairs(ids) do
-            add("Material #" .. id, "Materials", materialTotals[id])
+            add(materialName(id), "Materials", materialTotals[id])
+            if #rewards > 0 then
+                rewards[#rewards].Key = "material:" .. id
+            end
         end
 
         local outcome = status
