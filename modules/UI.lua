@@ -194,7 +194,7 @@ return function(ctx)
         Title = "Enemy Position",
         Description = "Below attacks upward through the ground (requires Noclip); Behind is behind the target",
         Values = {"Behind", "Above", "Inside", "Below", "Front", "Left", "Right"},
-        Default = "Below",
+        Default = "Behind",
         Callback = function(value) C.Position = value end
     })
     Settings:AddSlider("V11_Distance", {
