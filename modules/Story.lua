@@ -352,6 +352,11 @@ return function(ctx)
 
     function F.syncHUDProgress()
         F.readDifficulty()
+        -- The result screen may display the previous area. Do not pull
+        -- a finished round back into combat; the new-round detector handles it.
+        if S.Phase == "COMPLETED" or S.Phase == "FINAL_TELEPORT" then
+            return
+        end
         local now = os.clock()
         local area = S.HUDDisplayedArea
         if not area or area < 1 or area > LastEnemyWave
