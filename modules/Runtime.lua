@@ -97,11 +97,24 @@ return function(ctx)
         while S.Alive and not Fluent.Unloaded do
             task.wait(1)
             if S.Alive and S.Enabled and C.AutoReplay then
-                local remote = RS:FindFirstChild("endAction")
-                if remote and remote:IsA("RemoteEvent") then
-                    pcall(function()
-                        remote:FireServer(buffer.fromstring("\001"))
-                    end)
+                local now = os.clock()
+                local finishingBoss = S.Phase == "KILL_BOSS" and S.BossClearSince
+                    and now - S.BossClearSince < 1.5
+                local finishingStory = S.Phase == "FINAL_TELEPORT"
+                    or (S.Phase == "COMPLETED" and S.FinishAt
+                        and now - S.FinishAt < 1.5)
+                local holdingResult = false
+                if ctx.WebhookPauseReplay then
+                    local ok, blocked = pcall(ctx.WebhookPauseReplay)
+                    holdingResult = ok and blocked == true
+                end
+                if not finishingBoss and not finishingStory and not holdingResult then
+                    local remote = RS:FindFirstChild("endAction")
+                    if remote and remote:IsA("RemoteEvent") then
+                        pcall(function()
+                            remote:FireServer(buffer.fromstring("\001"))
+                        end)
+                    end
                 end
             end
         end
