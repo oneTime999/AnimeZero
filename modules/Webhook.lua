@@ -143,10 +143,8 @@ return function(ctx)
         str = str:gsub("0+$", ""):gsub("%.$", "")
         local integer, fraction = str:match("^(%-?%d+)(%.%d+)$")
         if not integer then integer, fraction = str, "" end
-        local done
-        repeat
-            integer, done = integer:gsub("(%d)(%d%d%d)$", "%1,%2")
-        until done == 0
+        integer = integer:reverse():gsub("(%d%d%d)", "%1,")
+            :reverse():gsub("^,", "")
         return integer .. fraction
     end
 
