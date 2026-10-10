@@ -214,8 +214,9 @@ return function(ctx)
         Session.GemsEarned = Session.GemsEarned
             + (report.RawGems or parseNumber(report.Stats["Gems Earned"]) or 0)
         for _, reward in ipairs(report.Rewards or {}) do
-            Session.Rewards[reward.Name] =
-                (Session.Rewards[reward.Name] or 0) + reward.Amount
+            local key = reward.Key or reward.Name
+            Session.Rewards[key] =
+                (Session.Rewards[key] or 0) + reward.Amount
         end
         Session.Seconds = Session.Seconds + secondsOf(report.Stats["Play Time"])
     end
@@ -316,7 +317,8 @@ return function(ctx)
                     local earned = "+" .. formatNumber(item.Amount)
                     if Config.FarmTotals and not isTest then
                         earned = earned .. " ("
-                            .. formatNumber(Session.Rewards[item.Name] or item.Amount)
+                            .. formatNumber(Session.Rewards[item.Key or item.Name]
+                                or item.Amount)
                             .. " total)"
                     end
                     table.insert(lines, item.Name .. ": " .. earned)
@@ -428,9 +430,21 @@ return function(ctx)
             elseif phase == "active" then
                 message = "Connected: match in progress"
             elseif phase == "finished" then
+                local materialNames, idsOnly = 0, 0
+                for _, item in ipairs(report.Rewards or {}) do
+                    if item.Category == "Materials" then
+                        if item.Name:match("^Material #") then
+                            idsOnly += 1
+                        else
+                            materialNames += 1
+                        end
+                    end
+                end
                 message = "Connected: "
                     .. tostring(#(report.Rewards or {}))
-                    .. " reward types available"
+                    .. " reward types; materials named: "
+                    .. tostring(materialNames)
+                    .. ", IDs only: " .. tostring(idsOnly)
             else
                 message = detail or "Match data not ready"
             end
