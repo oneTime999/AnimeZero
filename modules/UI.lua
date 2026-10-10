@@ -137,6 +137,8 @@ return function(ctx)
             Raid.BossEngaged = false
             Raid.BossGoneAt = nil
             Raid.ReplayUntil = 0
+            Raid.NextReplayAt = 0
+            Raid.WebhookRoundFinishedAt = nil
             Raid.RoundFinished = false
             Raid.Status = value and "Waiting for raid enemies" or "Disabled"
             if value then
@@ -164,6 +166,10 @@ return function(ctx)
             if value then switchToMode("Zzz") end
             Zzzz.Enabled = value
             Zzzz.Target = nil
+            Zzzz.LastHealth = nil
+            Zzzz.LastProgressAt = nil
+            Zzzz.LastRecoveryAt = nil
+            Zzzz.PositionFailedAt = nil
             if not value and ctx.ActiveFarmMode == "Zzz" then
                 ctx.ActiveFarmMode = nil
             end
