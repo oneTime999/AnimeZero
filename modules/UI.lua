@@ -24,7 +24,7 @@ return function(ctx)
 
     local Story = Window:AddTab({Title = "Story", Icon = "book-open"})
     local Raids = Window:AddTab({Title = "Raids", Icon = "swords"})
-    local ZzzzTab = Window:AddTab({Title = "Auto Zzzz World", Icon = "infinity"})
+    local ZzzzTab = Window:AddTab({Title = "Auto Zzz World", Icon = "infinity"})
     local SkillsTab = Window:AddTab({Title = "Skills", Icon = "flame"})
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
     local Profiles = Window:AddTab({Title = "Profiles", Icon = "save"})
@@ -121,7 +121,7 @@ return function(ctx)
     ZzzzTab:AddSection("Infinite Waves")
 
     zzzzToggle = ZzzzTab:AddToggle("HxH_ZzzzWorld", {
-        Title = "Auto Zzzz World",
+        Title = "Auto Zzz World",
         Description = "Automatically defeat enemies as each wave spawns",
         Default = false,
         Callback = function(value)
