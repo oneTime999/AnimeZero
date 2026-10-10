@@ -119,6 +119,11 @@ local S = {
     HUDPreviousArea = nil
 }
 
+local ZzzzWorld = {
+    Enabled = false,
+    Target = nil
+}
+
 local Raid = {
     Enabled = false,
     Status = "Disabled",
@@ -159,7 +164,7 @@ local Skill = {
 return {
     Players = Players, RS = RS, WS = WS, RunService = RunService,
     VU = VU, Player = Player, Env = Env, VIM = VIM,
-    C = C, S = S, Raid = Raid, Skill = Skill,
+    C = C, S = S, Raid = Raid, ZzzzWorld = ZzzzWorld, Skill = Skill,
     RubbleCoordinates = RubbleCoordinates, WaveCoordinates = WaveCoordinates,
     LastBorder = LastBorder, LastEnemyWave = LastEnemyWave,
     Functions = {}
