@@ -35,6 +35,8 @@ local C = {
     SkillsOnBorder = false,
     AFK = true,
     SkillInput = "Automatic",
+    DifficultyMode = "Automatic",
+    SkillKeyHold = 0.12,
     Noclip = true,
     TravelMethod = "Tween",
     TravelSpeed = 170,
@@ -56,6 +58,14 @@ local S = {
     Enabled = false,
     Phase = "GO_WAVE",
     WaveNumber = 1,
+    SubWave = 1,
+    ExpectedSubWaves = 1,
+    Difficulty = "Easy",
+    SecondWaveSnapshot = {},
+    SecondWaveWaitAt = 0,
+    LastDifficultyScan = 0,
+    CachedDifficulty = nil,
+    CachedHUDWave = nil,
     WaveCoordinate = nil,
     BorderNumber = C.FirstBorder,
     RubbleRef = nil,
@@ -168,6 +178,56 @@ end
 
 local function enemyFolder()
     return WS:FindFirstChild("enemies")
+end
+
+local function readDifficulty()
+    if C.DifficultyMode ~= "Automatic" then
+        S.Difficulty = C.DifficultyMode
+        S.ExpectedSubWaves = C.DifficultyMode == "Nightmare" and 2 or 1
+        return S.Difficulty
+    end
+
+    local now = os.clock()
+    if now - S.LastDifficultyScan < 0.65 then
+        return S.Difficulty
+    end
+    S.LastDifficultyScan = now
+
+    local gui = Player:FindFirstChildOfClass("PlayerGui")
+    if not gui then return S.Difficulty end
+
+    local detected, currentWave, totalWaves
+    for _, object in ipairs(gui:GetDescendants()) do
+        if object:IsA("TextLabel") or object:IsA("TextButton") then
+            local text = object.Text
+            local normalized = text:lower()
+            local uiArea = tonumber(normalized:match("area%s*(%d+)"))
+            if uiArea == S.BorderNumber
+                and normalized:find("wave%s*%d+%s*/%s*%d+") then
+                local current, total = normalized:match("wave%s*(%d+)%s*/%s*(%d+)")
+                currentWave = tonumber(current)
+                totalWaves = tonumber(total)
+                if normalized:find("nightmare", 1, true) then
+                    detected = "Nightmare"
+                elseif normalized:find("easy", 1, true) then
+                    detected = "Easy"
+                end
+                if detected then break end
+            end
+        end
+    end
+
+    if detected then
+        S.CachedDifficulty = detected
+        S.CachedHUDWave = currentWave
+        S.Difficulty = detected
+        S.ExpectedSubWaves = detected == "Nightmare" and 2 or 1
+    elseif totalWaves and totalWaves >= 2 then
+        S.Difficulty = "Nightmare"
+        S.ExpectedSubWaves = 2
+        S.CachedHUDWave = currentWave
+    end
+    return S.Difficulty
 end
 
 local function isInCurrentWave(model)
@@ -485,44 +545,46 @@ local function attackM1()
 end
 
 local function pressKey(skill)
-    if type(keypress) == "function" and type(keyrelease) == "function" then
-        local ok = pcall(function()
-            keypress(skill.VK)
-            task.wait(0.06)
-            keyrelease(skill.VK)
-        end)
-        if ok then return true, "keypress" end
+    if type(keypress) ~= "function" or type(keyrelease) ~= "function" then
+        return false
     end
-    return false
+    local pressed = pcall(keypress, skill.VK)
+    if not pressed then return false end
+    task.wait(C.SkillKeyHold)
+    pcall(keyrelease, skill.VK)
+    return true
 end
 
 local function pressVirtualKey(skill)
     if not VIM then return false end
-    local ok = pcall(function()
+    local pressed = pcall(function()
         VIM:SendKeyEvent(true, skill.Key, false, game)
-        task.wait(0.06)
+    end)
+    if not pressed then return false end
+    task.wait(C.SkillKeyHold)
+    pcall(function()
         VIM:SendKeyEvent(false, skill.Key, false, game)
     end)
-    return ok
+    return true
 end
 
 local function invokeSkill(skill)
     local used, method = false, ""
     if C.SkillInput == "keypress" then
-        used, method = pressKey(skill)
+        used, method = pressKey(skill), "keypress"
     elseif C.SkillInput == "VirtualInputManager" then
         used, method = pressVirtualKey(skill), "VirtualInputManager"
     else
-        local viaKey = select(1, pressKey(skill))
         local viaVirtual = pressVirtualKey(skill)
-        used = viaKey or viaVirtual
-        method = viaKey and viaVirtual and "keypress + VirtualInputManager"
-            or (viaKey and "keypress" or "VirtualInputManager")
+        local viaKey = pressKey(skill)
+        used = viaVirtual or viaKey
+        method = viaVirtual and viaKey and "VirtualInputManager + keypress"
+            or (viaVirtual and "VirtualInputManager" or "keypress")
     end
 
     S.SkillStatus = skill.Name .. ": " .. (used
-        and ("Input sent using " .. method .. " (activation not confirmed)")
-        or "keyboard input unavailable")
+        and ("Input sent through " .. method)
+        or "Keyboard input unavailable")
     return used
 end
 
@@ -539,7 +601,7 @@ local function autoSkills()
         if skill.Enabled and now - skill.Last >= skill.Delay then
             skill.Last = now
             nextSkillIndex = index % #Skill + 1
-            nextSkillAt = now + 0.3
+            nextSkillAt = now + 0.45
             S.Casting = true
             task.spawn(function()
                 local ok, err = pcall(invokeSkill, skill)
@@ -711,6 +773,45 @@ local function setPhase(phase, message)
     S.Target = nil
 end
 
+local function secondWaveAvailable()
+    local folder = enemyFolder()
+    if not folder then return false end
+    readDifficulty()
+    local confirmedByHUD = S.CachedHUDWave and S.CachedHUDWave >= 2
+    for _, model in ipairs(folder:GetChildren()) do
+        if model:IsA("Model") and living(model) and isInCurrentWave(model) then
+            local old = S.SecondWaveSnapshot[model]
+            if not old then
+                return true
+            end
+            local hp = hpOf(model)
+            if (old.Health ~= nil and hp ~= nil and hp > old.Health + 0.01)
+                or (not old.Alive and (hp == nil or hp > 0))
+                or confirmedByHUD then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function waitForSecondWave()
+    local folder = enemyFolder()
+    S.SecondWaveSnapshot = {}
+    if folder then
+        for _, model in ipairs(folder:GetChildren()) do
+            if model:IsA("Model") and isInCurrentWave(model) then
+                S.SecondWaveSnapshot[model] = {
+                    Health = hpOf(model),
+                    Alive = living(model)
+                }
+            end
+        end
+    end
+    S.SecondWaveWaitAt = os.clock()
+    setPhase("GO_SECOND_WAVE", "Returning to spawn for wave 2")
+end
+
 local function beginRubble()
     releaseHold()
     S.RubbleRef = nil
@@ -762,6 +863,10 @@ local function toWave(number, wave)
     S.BossClearSince = nil
     S.BossWaitAt = 0
     S.BossSnapshot = setmetatable({}, {__mode = "k"})
+    S.SubWave = 1
+    S.SecondWaveSnapshot = {}
+    S.SecondWaveWaitAt = 0
+    S.CachedHUDWave = nil
     S.WaveModels = {}
     S.Ignored = {}
     S.TargetProgress = setmetatable({}, {__mode = "k"})
@@ -885,6 +990,7 @@ local function step()
     end
 
     if S.Phase == "GO_WAVE" then
+        readDifficulty()
         if not S.WaveCoordinate then
             S.Status = "Wave destination unavailable"
             return
@@ -932,7 +1038,37 @@ local function step()
         return
     end
 
+    if S.Phase == "GO_SECOND_WAVE" then
+        if not S.WaveCoordinate then return end
+        local dest = CFrame.new(S.WaveCoordinate)
+        local tag = "Area " .. tostring(S.BorderNumber) .. " wave 2"
+        if not travelTo(dest, tag) then return end
+        S.SecondWaveWaitAt = os.clock()
+        setPhase("WAIT_SECOND_WAVE", "Waiting for the second enemy wave")
+        if C.LockOnWave then S.HoldCF = dest end
+        return
+    end
+
+    if S.Phase == "WAIT_SECOND_WAVE" then
+        readDifficulty()
+        if secondWaveAvailable() then
+            S.SubWave = 2
+            beginWave(S.BorderNumber == LastEnemyWave)
+            S.Status = "Area " .. S.BorderNumber .. ": attacking wave 2/2"
+        elseif os.clock() - S.SecondWaveWaitAt >= C.MaxSpawnWait then
+            S.SecondWaveWaitAt = os.clock()
+            releaseHold()
+            setPosition(CFrame.new(S.WaveCoordinate + Vector3.new(0, 1, 9)), 0.4, false)
+            setPhase("GO_SECOND_WAVE", "Waiting for second wave; repositioning")
+        else
+            S.Status = string.format("Area %d: waiting for wave 2/2 (%.1fs)",
+                S.BorderNumber, os.clock() - S.SecondWaveWaitAt)
+        end
+        return
+    end
+
     if S.Phase == "KILL_ENEMIES" then
+        readDifficulty()
         local target = findEnemy()
         if target then
             if S.FinalMode and (bossNamed(target) or S.EmptyAt ~= nil) then
@@ -952,7 +1088,9 @@ local function step()
             S.Status = string.format("Wave cleared in %.1fs | skipped: %d", remaining, S.IgnoredStale)
 
             if os.clock() - S.EmptyAt >= C.ConfirmClear then
-                if S.FinalMode then
+                if S.SubWave < S.ExpectedSubWaves then
+                    waitForSecondWave()
+                elseif S.FinalMode then
                     if S.BossEncountered then
                         setPhase("FINAL_TELEPORT", "Boss defeated")
                     else
@@ -1163,6 +1301,9 @@ Farm:AddToggle("V11_Enable", {
             S.IgnoredStale = 0
             S.LastM1 = 0
             S.FinalRestored = false
+            S.CachedDifficulty = nil
+            S.LastDifficultyScan = 0
+            nextSkillIndex = 1
             nextSkillAt = 0
             for _, skill in ipairs(Skill) do skill.Last = -math.huge end
             toWave(C.FirstBorder, 1)
@@ -1182,6 +1323,16 @@ Farm:AddToggle("V11_Enable", {
 })
 
 local Stat = Farm:AddParagraph({Title = "Progress", Content = "Disabled"})
+
+Farm:AddDropdown("Stable_Difficulty", {
+    Title = "Difficulty",
+    Values = {"Automatic", "Easy", "Nightmare"},
+    Default = "Automatic",
+    Callback = function(value)
+        C.DifficultyMode = value
+        readDifficulty()
+    end
+})
 
 Farm:AddDropdown("V11_Position", {
     Title = "Enemy Position",
@@ -1252,10 +1403,15 @@ SkillsTab:AddToggle("V11_SkillsOnRubble", {
 })
 SkillsTab:AddDropdown("V11_InputMethod", {
     Title = "Skill Input Method",
-    Description = "Keyboard input only",
     Values = {"Automatic", "keypress", "VirtualInputManager"},
     Default = "Automatic",
     Callback = function(value) C.SkillInput = value end
+})
+
+SkillsTab:AddSlider("Stable_SkillHold", {
+    Title = "Key Press Duration",
+    Min = 0.06, Max = 0.4, Default = 0.12, Rounding = 2,
+    Callback = function(value) C.SkillKeyHold = value end
 })
 
 for _, index in ipairs({4, 1, 2, 3}) do
@@ -1422,10 +1578,8 @@ end)
 task.spawn(function()
     while S.Alive and not Fluent.Unloaded do
         pcall(function()
-            Stat:SetDesc(string.format("Stage: %s\nWave: %d | Rubble: %s\n%s",
-                S.Phase, S.BorderNumber,
-                S.BorderNumber <= LastBorder and tostring(S.BorderNumber) or "cleared",
-                S.Status .. (S.RubbleReason ~= "" and ("\nLast Rubble: " .. S.RubbleReason) or "")))
+            Stat:SetDesc(string.format("Mode: %s | Area: %d | Wave: %d/%d\n%s",
+                S.Difficulty, S.BorderNumber, S.SubWave, S.ExpectedSubWaves, S.Status))
         end)
         task.wait(0.5)
     end
