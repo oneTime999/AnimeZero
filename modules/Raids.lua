@@ -35,6 +35,7 @@ return function(ctx)
             Raid.BossGoneAt = nil
             Raid.Target = nil
             Raid.ReplayUntil = os.clock() + 1
+            Raid.WebhookRoundFinishedAt = nil
             F.releaseHold()
             Raid.Status = "Replay sent; waiting 1 second"
         else
@@ -99,12 +100,24 @@ return function(ctx)
         if Raid.RoundFinished then
             Raid.Target = nil
             F.releaseHold()
+            Raid.WebhookRoundFinishedAt = Raid.WebhookRoundFinishedAt or now
             if mobCount > 0 or Raid.BossPresent then
                 Raid.RoundFinished = false
                 Raid.BossEngaged = false
                 Raid.BossGoneAt = nil
+                Raid.WebhookRoundFinishedAt = nil
             elseif C.AutoReplay then
-                F.raidReplay()
+                local grace = now - Raid.WebhookRoundFinishedAt < 1.5
+                local holdingResult = false
+                if ctx.WebhookPauseReplay then
+                    local ok, blocked = pcall(ctx.WebhookPauseReplay)
+                    holdingResult = ok and blocked == true
+                end
+                if grace or holdingResult then
+                    Raid.Status = "Waiting for match report before replay"
+                else
+                    F.raidReplay()
+                end
             else
                 Raid.Status = "Boss defeated"
             end
