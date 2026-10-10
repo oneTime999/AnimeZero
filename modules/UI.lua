@@ -272,32 +272,8 @@ return function(ctx)
         Default = 0.2, Rounding = 2,
         Callback = function(value) C.M1Interval = value end
     })
-    Settings:AddSection("Advanced Movement")
+    Settings:AddSection("General")
 
-    Settings:AddSlider("V11_TweenArc", {
-        Title = "Tween Arc Height", Min = 0, Max = 25,
-        Default = 10, Rounding = 0,
-        Callback = function(value) C.TravelArc = value end
-    })
-    Settings:AddSlider("V11_RubbleAbove", {
-        Title = "Height Above Rubble", Min = 1, Max = 10,
-        Default = 3, Rounding = 0,
-        Callback = function(value) C.RubbleAboveGap = value end
-    })
-    Settings:AddToggle("V11_WaveLock", {
-        Title = "Hold Position During Spawn", Default = true,
-        Callback = function(value)
-            C.LockOnWave = value
-            if not value and S.Phase == "WAIT_ENEMIES" then F.releaseHold() end
-        end
-    })
-    Settings:AddToggle("V11_RubbleLock", {
-        Title = "Hold Position on Rubble", Default = true,
-        Callback = function(value)
-            C.LockOnRubble = value
-            if not value and S.Phase == "BREAK_RUBBLE" then F.releaseHold() end
-        end
-    })
     Settings:AddToggle("V11_AntiAFK", {
         Title = "Anti AFK", Default = true,
         Callback = function(value) C.AFK = value end
