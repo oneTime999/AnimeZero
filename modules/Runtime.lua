@@ -2,6 +2,7 @@ return function(ctx)
     local Players, RS, WS, RunService, VU = ctx.Players, ctx.RS, ctx.WS, ctx.RunService, ctx.VU
     local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
+    local Zzzz = ctx.ZzzzWorld
     local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
     local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
@@ -21,6 +22,8 @@ return function(ctx)
         end
         Raid.Enabled = false
         Raid.Target = nil
+        Zzzz.Enabled = false
+        Zzzz.Target = nil
         if S.Enabled and S.Phase == "BREAK_RUBBLE" and S.RubbleRef then
             local savedNoclip = C.Noclip
             C.Noclip = false
@@ -42,7 +45,7 @@ return function(ctx)
 
     S.holdConn = RunService.Heartbeat:Connect(function()
         pcall(F.updateTravel)
-        if not S.Alive or not (S.Enabled or Raid.Enabled) or not S.HoldCF or S.Travel then return end
+        if not S.Alive or not (S.Enabled or Raid.Enabled or Zzzz.Enabled) or not S.HoldCF or S.Travel then return end
         local cf = S.HoldCF
         local char, root = F.character()
         if not char or not root then return end
@@ -57,8 +60,8 @@ return function(ctx)
     end)
 
     S.noclipConn = RunService.Stepped:Connect(function()
-        if S.Alive and (S.Enabled or Raid.Enabled) and C.Noclip
-            and (Raid.Enabled or S.Phase ~= "COMPLETED" or not S.FinalRestored) then
+        if S.Alive and (S.Enabled or Raid.Enabled or Zzzz.Enabled) and C.Noclip
+            and (Raid.Enabled or Zzzz.Enabled or S.Phase ~= "COMPLETED" or not S.FinalRestored) then
             pcall(F.applyNoclip)
         end
     end)
@@ -78,6 +81,9 @@ return function(ctx)
             if Raid.Enabled then
                 local raidOk = pcall(F.raidStep)
                 if not raidOk then Raid.Status = "Raid temporarily unavailable" end
+            end
+            if Zzzz.Enabled then
+                pcall(F.zzzzStep)
             end
             task.wait(0.05)
         end
