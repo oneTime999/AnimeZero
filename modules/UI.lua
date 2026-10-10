@@ -80,7 +80,7 @@ return function(ctx)
 
     storyToggle = Story:AddToggle("V11_Enable", {
         Title = "Auto HxH Story",
-        Description = "Clear waves, break rubble, and defeat the final boss",
+        Description = "Automatically farms Story",
         Default = false,
         Callback = function(value)
             if value then switchToMode("Story") end
@@ -123,7 +123,7 @@ return function(ctx)
 
     raidToggle = Raids:AddToggle("HxH_ShadowMonarchRaid", {
         Title = "Auto Shadow Monarch Raid",
-        Description = "Clear mobs and attack the boss when vulnerable",
+        Description = "Automatically farms Shadow Monarch Raid",
         Default = false,
         Callback = function(value)
             if value then switchToMode("Raids") end
@@ -158,7 +158,7 @@ return function(ctx)
 
     zzzzToggle = ZzzzTab:AddToggle("HxH_ZzzzWorld", {
         Title = "Auto Zzz World",
-        Description = "Automatically defeat enemies as each wave spawns",
+        Description = "Automatically farms Zzz World",
         Default = false,
         Callback = function(value)
             if value then switchToMode("Zzz") end
@@ -197,15 +197,15 @@ return function(ctx)
     Combat:AddSection("Automatic Skills")
 
     Combat:AddToggle("V11_AutoSkills", {
-        Title = "Auto Skills", Description = "Automatically use enabled abilities", Default = true,
+        Title = "Auto Skills", Description = "Uses skills automatically", Default = true,
         Callback = function(value) C.Skills = value end
     })
     Combat:AddToggle("V11_SkillsOnRubble", {
-        Title = "Skills on Rubble", Description = "Use abilities while breaking barriers", Default = false,
+        Title = "Skills on Rubble", Description = "Uses skills on rubble", Default = false,
         Callback = function(value) C.SkillsOnBorder = value end
     })
     Combat:AddSlider("Stable_SkillHold", {
-        Title = "Key Press Duration", Description = "How long each skill key is held",
+        Title = "Key Press Duration", Description = "Adjusts skill key press duration",
         Min = 0.02, Max = 0.4, Default = 0.06, Rounding = 2,
         Callback = function(value) C.SkillKeyHold = value end
     })
@@ -228,14 +228,14 @@ return function(ctx)
 
     Settings:AddToggle("Stable_AutoReplay", {
         Title = "Auto Replay",
-        Description = "Automatically replay Story and Raids",
+        Description = "Replays matches automatically",
         Default = true,
         Callback = function(value) C.AutoReplay = value end
     })
 
     Settings:AddToggle("HxH_AutoCollectDrops", {
         Title = "Auto Collect Drops",
-        Description = "Collect nearby Coins and Health without teleporting",
+        Description = "Collects drops automatically",
         Default = false,
         Callback = function(enabled)
             C.AutoCollectDrops = enabled
@@ -246,13 +246,13 @@ return function(ctx)
 
     Settings:AddDropdown("V11_Position", {
         Title = "Enemy Position",
-        Description = "Below attacks upward through the ground (requires Noclip); Behind is behind the target",
+        Description = "Changes position around enemies",
         Values = {"Behind", "Above", "Inside", "Below", "Front", "Left", "Right"},
         Default = "Behind",
         Callback = function(value) C.Position = value end
     })
     Settings:AddSlider("V11_Distance", {
-        Title = "Enemy Distance", Description = "Offset from the target", Min = 1, Max = 12,
+        Title = "Enemy Distance", Description = "Adjusts distance from enemies", Min = 1, Max = 12,
         Default = 3, Rounding = 1,
         Callback = function(value) C.Distance = value end
     })
@@ -274,7 +274,7 @@ return function(ctx)
 
     Settings:AddDropdown("V11_TravelMethod", {
         Title = "Travel Method",
-        Description = "Tween for smooth travel, Teleport for instant moves",
+        Description = "Changes movement method",
         Values = {"Tween", "Teleport"},
         Default = "Tween",
         Callback = function(value) C.TravelMethod = value end
