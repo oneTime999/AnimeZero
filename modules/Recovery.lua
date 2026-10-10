@@ -112,8 +112,10 @@ return function(ctx)
     end
 
     task.spawn(function()
+        local lastWarningAt = -math.huge
         while S.Alive and not (Fluent and Fluent.Unloaded) do
             task.wait(1)
+            local ok, err = pcall(function()
             local now = os.clock()
             local currentMode = activeMode()
             local char, root = F.character()
@@ -228,8 +230,12 @@ return function(ctx)
                     local waitingForMobs = mode ~= "Story"
                         or S.Phase == "WAIT_ENEMIES"
                         or S.Phase == "WAIT_SECOND_WAVE"
+                        or S.Phase == "WAIT_BOSS"
                         or S.Phase == "KILL_ENEMIES"
                         or S.Phase == "KILL_BOSS"
+                        or (S.Phase == "BREAK_RUBBLE"
+                            and (not S.RubbleRef
+                                or not F.rubblePart(S.RubbleRef)))
 
                     if livingCount == 0 and waitingForMobs then
                         emptySince = emptySince or now
@@ -252,6 +258,11 @@ return function(ctx)
                         end
                     end
                 end
+            end
+            end)
+            if not ok and os.clock() - lastWarningAt >= 15 then
+                lastWarningAt = os.clock()
+                warn("[Slow Hub] Recovery monitor error: " .. tostring(err))
             end
         end
     end)
