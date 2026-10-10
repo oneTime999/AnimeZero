@@ -74,62 +74,6 @@ return function(ctx)
         end
     })
 
-    local Stat = Story:AddParagraph({Title = "Run Status", Content = "Disabled"})
-
-    Story:AddSection("Run Controls")
-
-    Story:AddButton({
-        Title = "Skip Current Stage",
-        Description = "Advance to the next objective",
-        Callback = function()
-            if not S.Enabled then
-                S.Status = "Enable Auto Farm first"
-                return
-            end
-
-            local phase = S.Phase
-            if phase == "GO_WAVE" or phase == "WAIT_ENEMIES"
-                or phase == "KILL_ENEMIES" or phase == "GO_SECOND_WAVE"
-                or phase == "WAIT_SECOND_WAVE" then
-                if S.FinalMode then
-                    F.beginBossWait()
-                else
-                    F.beginRubble()
-                end
-            elseif phase == "BREAK_RUBBLE" then
-                F.afterRubble()
-            elseif phase == "WAIT_BOSS" or phase == "KILL_BOSS" then
-                F.setPhase("FINAL_TELEPORT", "Boss stage skipped")
-            elseif phase == "COMPLETED" then
-                F.toWave(C.FirstBorder, 1)
-            end
-        end
-    })
-
-    Story:AddDropdown("Stable_Difficulty", {
-        Title = "Difficulty",
-        Description = "Automatic reads the current game mode",
-        Values = {"Automatic", "Easy", "Nightmare"},
-        Default = "Automatic",
-        Callback = function(value)
-            C.DifficultyMode = value
-            F.readDifficulty()
-        end
-    })
-
-    Story:AddToggle("Stable_AutoReplay", {
-        Title = "Auto Replay", Description = "Retry the story automatically", Default = true,
-        Callback = function(value) C.AutoReplay = value end
-    })
-
-    Story:AddButton({Title = "Restart Story", Description = "Start again from the first area", Callback = function()
-        S.OldModels = setmetatable({}, {__mode = "k"})
-        S.OldDead = setmetatable({}, {__mode = "k"})
-        S.FinalRestored = false
-        F.toWave(C.FirstBorder, 1)
-    end})
-
-
 
     Raids:AddSection("Shadow Monarch")
 
@@ -164,20 +108,6 @@ return function(ctx)
         end
     })
 
-    Raids:AddToggle("HxH_RaidAutoReplay", {
-        Title = "Auto Replay",
-        Description = "Retry 5 seconds after defeating the boss",
-        Default = true,
-        Callback = function(value)
-            Raid.AutoReplay = value
-        end
-    })
-
-    local RaidStat = Raids:AddParagraph({
-        Title = "Shadow Monarch Raid",
-        Content = "Disabled"
-    })
-
     SkillsTab:AddSection("Skill Automation")
 
     SkillsTab:AddToggle("V11_AutoSkills", {
@@ -188,14 +118,6 @@ return function(ctx)
         Title = "Skills on Rubble", Description = "Use abilities while breaking barriers", Default = false,
         Callback = function(value) C.SkillsOnBorder = value end
     })
-    SkillsTab:AddDropdown("V11_InputMethod", {
-        Title = "Skill Input Method",
-        Description = "Choose how skill keys are simulated",
-        Values = {"Automatic", "keypress", "VirtualInputManager"},
-        Default = "Automatic",
-        Callback = function(value) C.SkillInput = value end
-    })
-
     SkillsTab:AddSlider("Stable_SkillHold", {
         Title = "Key Press Duration", Description = "How long each skill key is held",
         Min = 0.02, Max = 0.4, Default = 0.06, Rounding = 2,
@@ -215,6 +137,22 @@ return function(ctx)
             Callback = function(value) skill.Delay = value end
         })
     end
+
+    Settings:AddSection("Auto Replay")
+
+    Settings:AddToggle("Stable_AutoReplay", {
+        Title = "Story Auto Replay",
+        Description = "Retry story runs automatically",
+        Default = true,
+        Callback = function(value) C.AutoReplay = value end
+    })
+
+    Settings:AddToggle("HxH_RaidAutoReplay", {
+        Title = "Raid Auto Replay",
+        Description = "Restart the raid after defeating the boss",
+        Default = true,
+        Callback = function(value) Raid.AutoReplay = value end
+    })
 
     Settings:AddSection("Movement")
 
@@ -342,6 +280,4 @@ return function(ctx)
     ctx.Fluent = Fluent
     ctx.Window = Window
     ctx.Profiles = Profiles
-    ctx.StoryStatus = Stat
-    ctx.RaidStatus = RaidStat
 end
