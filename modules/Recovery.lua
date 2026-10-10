@@ -237,7 +237,12 @@ return function(ctx)
                             and (not S.RubbleRef
                                 or not F.rubblePart(S.RubbleRef)))
 
-                    if livingCount == 0 and waitingForMobs then
+                    -- A raid with only an immune boss and no minions can
+                    -- be stuck just like a wave with no enemies.
+                    local idleImmuneBoss = mode == "Raid"
+                        and Raid.BossImmune and livingCount == 1
+                    if (livingCount == 0 or idleImmuneBoss)
+                        and waitingForMobs then
                         emptySince = emptySince or now
                     else
                         emptySince = nil
@@ -251,8 +256,6 @@ return function(ctx)
                         elseif emptySince and now - emptySince >= EMPTY_TIMEOUT then
                             recover(mode, "no NPCs for 30 seconds", root)
                         elseif livingCount > 0 and hpKnown
-                            and not (mode == "Raid"
-                                and Raid.BossImmune and livingCount == 1)
                             and now - lastDamageAt >= DAMAGE_TIMEOUT then
                             recover(mode, "no NPC damage for 120 seconds", root)
                         end
