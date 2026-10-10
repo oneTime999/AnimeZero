@@ -1,5 +1,5 @@
--- Slow Hub - standalone key activation screen
--- Fill in these two values before distributing this loader.
+-- Slow Hub - key activation screen
+-- Users enter their key in the UI. No script_key is needed at startup.
 local CONFIG = {
     ScriptId = "4148cbb709649588d331629184124c57",
     GetKeyUrl = "https://link-center.net/1247234/hMKSg5XrHazr"
@@ -104,9 +104,9 @@ Keys:AddButton({
                 return
             end
 
-            -- Luarmor expects script_key to be set before load_script().
-            script_key = enteredKey
+            -- Only after validation: pass the entered key to Luarmor.
             Env.script_key = enteredKey
+            script_key = enteredKey
             notify("Key accepted. Loading Slow Hub...")
             local loaded, err = pcall(function()
                 sdk.load_script()
