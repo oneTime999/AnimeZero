@@ -249,7 +249,6 @@ return function(ctx)
 
         local body = HttpService:JSONEncode({
             username = "Slow Hub",
-            content = "Player: ||" .. Player.Name .. "||",
             allowed_mentions = {parse = {}},
             embeds = {embed}
         })
@@ -293,6 +292,7 @@ return function(ctx)
             end
         end
 
+        addField(true, "Player", "||" .. Player.Name .. "||")
         addField(options.Result, "Result", report.Win and "Victory" or "Defeat")
         addField(options.Duration, "Duration", stats["Play Time"])
         addField(options.Difficulty, "Difficulty", report.Difficulty or "Not detected")
