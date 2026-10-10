@@ -36,7 +36,6 @@ local C = {
     SkillsOnBorder = false,
     AFK = true,
     SkillInput = "Automatic",
-    DifficultyMode = "Automatic",
     SkillKeyHold = 0.06,
     Noclip = true,
     TravelMethod = "Tween",
