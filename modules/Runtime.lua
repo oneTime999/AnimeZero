@@ -51,7 +51,8 @@ return function(ctx)
         if not char or not root then return end
         pcall(function()
             if root.Anchored then root.Anchored = false end
-            if (root.Position - cf.Position).Magnitude > 0.45 then
+            local drift = root.Position - cf.Position
+            if drift.Magnitude > 0.45 or math.abs(drift.Y) > 0.2 then
                 char:PivotTo(cf)
             end
             root.AssemblyLinearVelocity = Vector3.zero
