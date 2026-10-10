@@ -25,21 +25,23 @@ return function(ctx)
             return
         end
 
+        local now = os.clock()
+        if now < (Raid.NextReplayAt or 0) then return end
+        Raid.NextReplayAt = now + 8
         local ok = pcall(function()
             remote:FireServer(buffer.fromstring("\001"))
         end)
 
         if ok then
-            Raid.RoundFinished = false
-            Raid.BossEngaged = false
-            Raid.BossGoneAt = nil
+            -- Do not mark the round as restarted until enemies actually
+            -- appear. Sending a RemoteEvent does not confirm server success.
+            Raid.RoundFinished = true
+            Raid.ReplayUntil = now + 2
             Raid.Target = nil
-            Raid.ReplayUntil = os.clock() + 1
-            Raid.WebhookRoundFinishedAt = nil
             F.releaseHold()
-            Raid.Status = "Replay sent; waiting 1 second"
+            Raid.Status = "Replay requested; waiting for the next round"
         else
-            Raid.Status = "Waiting to retry replay"
+            Raid.Status = "Replay unavailable; retrying"
         end
     end
 
@@ -53,28 +55,32 @@ return function(ctx)
         end
 
         local now = os.clock()
-        if Raid.ReplayUntil > 0 then
-            if now < Raid.ReplayUntil then
-                Raid.Status = string.format("Replay cooldown: %.1fs", Raid.ReplayUntil - now)
-                return
-            end
+        if Raid.ReplayUntil > 0 and now >= Raid.ReplayUntil then
             Raid.ReplayUntil = 0
-            Raid.BossEngaged = false
-            Raid.BossGoneAt = nil
-            Raid.RoundFinished = false
-            Raid.Target = nil
         end
 
         local folder = F.enemyFolder()
         if not folder then
             Raid.Target = nil
-            F.holdCombatPosition()
-            Raid.Status = "Waiting for raid enemies"
+            F.releaseHold()
+            if Raid.RoundFinished and C.AutoReplay then
+                local blocked = false
+                if ctx.WebhookPauseReplay then
+                    local ok, value = pcall(ctx.WebhookPauseReplay)
+                    blocked = ok and value == true
+                end
+                if not blocked then F.raidReplay() end
+            else
+                Raid.Status = "Waiting for raid enemies"
+            end
             return
         end
 
         local tag = F.getRaidBossTag()
-        Raid.BossImmune = not tag or string.find(string.upper(tag), "IMMUNE", 1, true) ~= nil
+        -- Missing BossBar text is not proof that the boss is immune.
+        -- Try combat if the server has no visible immunity indication.
+        Raid.BossImmune = tag ~= nil
+            and string.find(string.upper(tag), "IMMUNE", 1, true) ~= nil
 
         local boss = folder:FindFirstChild("0")
         Raid.BossPresent = boss ~= nil and F.living(boss)
@@ -105,7 +111,10 @@ return function(ctx)
                 Raid.RoundFinished = false
                 Raid.BossEngaged = false
                 Raid.BossGoneAt = nil
+                Raid.ReplayUntil = 0
+                Raid.NextReplayAt = 0
                 Raid.WebhookRoundFinishedAt = nil
+                Raid.Status = "New raid wave detected"
             elseif C.AutoReplay then
                 local grace = now - Raid.WebhookRoundFinishedAt < 1.5
                 local holdingResult = false
@@ -115,6 +124,8 @@ return function(ctx)
                 end
                 if grace or holdingResult then
                     Raid.Status = "Waiting for match report before replay"
+                elseif now < (Raid.NextReplayAt or 0) then
+                    Raid.Status = "Waiting for the next raid round"
                 else
                     F.raidReplay()
                 end
