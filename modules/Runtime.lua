@@ -95,7 +95,7 @@ return function(ctx)
 
     task.spawn(function()
         while S.Alive and not Fluent.Unloaded do
-            task.wait(5)
+            task.wait(1)
             if S.Alive and S.Enabled and C.AutoReplay then
                 local remote = RS:FindFirstChild("endAction")
                 if remote and remote:IsA("RemoteEvent") then
