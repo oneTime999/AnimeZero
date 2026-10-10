@@ -21,9 +21,7 @@ return function(ctx)
         S.HUDSyncGraceUntil = 0
         S.CompletedEnemySnapshot = nil
         S.CombatWaitSince = nil
-        for _, skill in ipairs(Skill) do
-            skill.Last = -math.huge
-        end
+        if F.resetSkillQueue then F.resetSkillQueue() end
         F.toWave(C.FirstBorder, 1)
         S.Status = "New round detected; restarting Story"
     end
@@ -67,6 +65,7 @@ return function(ctx)
         end
 
         S.StoryPositionFailedAt = nil
+        S.StoryLastAttackAt = os.clock()
         if F.living(target) then
             local m1ok, m1err = pcall(F.attackM1)
             local skillok, skillerr = pcall(F.autoSkills)
@@ -198,6 +197,47 @@ return function(ctx)
         S.SpawnAt = 0
         S.Status = "Moving to wave " .. tostring(number)
         F.setPhase("GO_WAVE", string.format("Moving to wave %d", S.BorderNumber))
+    end
+
+    function F.recoverStory(reason, forceFirstArea)
+        if not S.Enabled then return false end
+        F.cancelTravel()
+        F.releaseHold()
+        F.restoreCollisions()
+        S.StoryPositionFailedAt = nil
+        S.StoryLastAttackAt = os.clock()
+        S.CombatWaitSince = nil
+        S.OldModels = setmetatable({}, {__mode = "k"})
+        S.OldDead = setmetatable({}, {__mode = "k"})
+        S.Ignored = {}
+        S.TargetProgress = setmetatable({}, {__mode = "k"})
+        S.LastM1 = 0
+        S.FinalRestored = false
+        S.CompletedEnemySnapshot = nil
+        S.LastDifficultyScan = 0
+        S.HUDSyncCandidate = nil
+        S.HUDSyncGraceUntil = 0
+        if F.resetSkillQueue then F.resetSkillQueue() end
+
+        local area = C.FirstBorder
+        if not forceFirstArea then
+            local now = os.clock()
+            local uiArea = S.HUDDisplayedArea
+            if type(uiArea) == "number" and uiArea >= C.FirstBorder
+                and uiArea <= LastEnemyWave
+                and now - S.HUDLastSeen < 2.5 then
+                area = uiArea
+            elseif type(S.BorderNumber) == "number"
+                and S.BorderNumber >= C.FirstBorder
+                and S.BorderNumber <= LastEnemyWave then
+                area = S.BorderNumber
+            end
+        end
+        F.toWave(area, 1)
+        S.StoryRecoveries = (S.StoryRecoveries or 0) + 1
+        S.StoryLastRecoveryAt = os.clock()
+        S.Status = "Story recovered: " .. tostring(reason)
+        return true
     end
 
     function F.snapshotOldMobs()
