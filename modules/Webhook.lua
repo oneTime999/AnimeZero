@@ -16,13 +16,13 @@ return function(ctx)
     Webhooks:AddSection("Connection")
     Webhooks:AddToggle("HxH_WebhookEnabled", {
         Title = "Match Notifications",
-        Description = "Automatically send one report when the result screen appears",
+        Description = "Sends match results to Discord",
         Default = false,
         Callback = function(value) Config.Enabled = value end
     })
     Webhooks:AddInput("HxH_WebhookURL", {
         Title = "Discord Webhook URL",
-        Description = "Stored in your local profile only",
+        Description = "Where notifications are sent",
         Default = "",
         Placeholder = "https://discord.com/api/webhooks/...",
         Finished = false,
@@ -383,13 +383,13 @@ return function(ctx)
     Webhooks:AddSection("Farm Session")
     Webhooks:AddToggle("HxH_WebhookFarmTotals", {
         Title = "Show Accumulated Farm Totals",
-        Description = "Show rewards, EXP, Gems and session totals",
+        Description = "Shows accumulated farm totals",
         Default = true,
         Callback = function(value) Config.FarmTotals = value end
     })
     Webhooks:AddButton({
         Title = "Reset Farm Session",
-        Description = "Reset rewards, match results and total play time",
+        Description = "Resets farm totals",
         Callback = function()
             resetSession()
             Fluent:Notify({
@@ -403,7 +403,7 @@ return function(ctx)
     Webhooks:AddSection("Notifications")
     Webhooks:AddButton({
         Title = "Test Webhook Notifications",
-        Description = "Send a sample Discord notification using your selected fields",
+        Description = "Sends a test notification",
         Callback = function()
             task.spawn(function()
                 local success, message = send(testReport(), true)
