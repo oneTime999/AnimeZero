@@ -1,8 +1,8 @@
 -- Slow Hub - standalone key activation screen
 -- Fill in these two values before distributing this loader.
 local CONFIG = {
-    ScriptId = "YOUR_LUARMOR_SCRIPT_ID",
-    GetKeyUrl = "YOUR_LINKVERTISE_URL"
+    ScriptId = "4148cbb709649588d331629184124c57",
+    GetKeyUrl = "https://link-center.net/1247234/hMKSg5XrHazr"
 }
 
 if not game:IsLoaded() then game.Loaded:Wait() end
