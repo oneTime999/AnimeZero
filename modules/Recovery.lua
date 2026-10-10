@@ -1,6 +1,6 @@
 return function(ctx)
     local S, C, Raid, Zzzz = ctx.S, ctx.C, ctx.Raid, ctx.ZzzzWorld
-    local Player, WS, F = ctx.Player, ctx.WS, ctx.Functions
+    local Player, F = ctx.Player, ctx.Functions
     local WaveCoordinates = ctx.WaveCoordinates
     local Fluent = ctx.Fluent
 
@@ -14,6 +14,7 @@ return function(ctx)
     local lastHealth = setmetatable({}, {__mode = "k"})
     local origin = nil
     local attempts = 0
+    local lastCharacter, lastStage = nil, nil
 
     local function activeMode()
         if S.Enabled then return "Story" end
@@ -34,10 +35,8 @@ return function(ctx)
             return true
         end
 
-        if ctx.ReadMatchStore then
-            local ok, _, matchPhase = pcall(ctx.ReadMatchStore)
-            if ok and matchPhase == "finished" then return true end
-        end
+        -- RunStore can briefly retain a previous result after replay.
+        -- Rely on the current screen/farm state instead of stale results.
         return false
     end
 
@@ -124,6 +123,10 @@ return function(ctx)
                 since = now
                 attempts = 0
                 lastRecovery = -math.huge
+                lastCharacter = char
+                lastStage = currentMode == "Story"
+                    and (tostring(S.BorderNumber) .. "/" .. tostring(S.SubWave))
+                    or nil
                 origin = (currentMode ~= "Story" and root)
                     and CFrame.new(root.Position + Vector3.new(0, 3, 0))
                     or nil
@@ -131,10 +134,26 @@ return function(ctx)
             end
 
             if mode and root then
-                -- If the user enables Raid or Zzz before respawning, capture
-                -- an actual initial position as soon as a character appears.
+                -- A new character has a new spawn position. Do not teleport
+                -- Raid/Zzz back to a location from the previous life.
+                if char ~= lastCharacter then
+                    lastCharacter = char
+                    if mode ~= "Story" then
+                        origin = CFrame.new(root.Position + Vector3.new(0, 3, 0))
+                    end
+                    resetSample(now)
+                    since = now
+                end
                 if mode ~= "Story" and not origin then
                     origin = CFrame.new(root.Position + Vector3.new(0, 3, 0))
+                end
+                if mode == "Story" then
+                    local stage = tostring(S.BorderNumber) .. "/" .. tostring(S.SubWave)
+                    if stage ~= lastStage then
+                        lastStage = stage
+                        resetSample(now)
+                        since = now
+                    end
                 end
 
                 if matchFinished(mode) then
@@ -151,7 +170,7 @@ return function(ctx)
 
                     local seen = {}
                     local livingCount, hpKnown = 0, false
-                    local damaged = false
+                    local damaged, newMob = false, false
                     local enemies = F.enemyFolder()
 
                     if enemies then
@@ -163,6 +182,7 @@ return function(ctx)
                                 if type(hp) == "number" then
                                     hpKnown = true
                                     local previous = lastHealth[npc]
+                                    if previous == nil then newMob = true end
                                     if previous and hp < previous - 0.01 then
                                         damaged = true
                                     end
@@ -182,6 +202,7 @@ return function(ctx)
                             if type(hp) == "number" then
                                 hpKnown = true
                                 local previous = lastHealth[boss]
+                                if previous == nil then newMob = true end
                                 if previous and hp < previous - 0.01 then
                                     damaged = true
                                 end
@@ -198,7 +219,9 @@ return function(ctx)
                         end
                     end
 
-                    if damaged then
+                    -- A new wave is proof that the round is progressing.
+                    -- Do not count time spent between waves as failed damage.
+                    if damaged or newMob then
                         lastDamageAt = now
                     end
 
