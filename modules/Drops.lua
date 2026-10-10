@@ -96,7 +96,8 @@ return function(ctx)
                                 and now - record.addedAt >= 2
                                 and now - (lastSent[dropId] or -math.huge) >= 4 then
                                 local distance = (root.Position - position).Magnitude
-                                if distance <= 12 and distance < nearestDistance then
+                                -- Test mode: no client-side distance limit.
+                                if distance < nearestDistance then
                                     nearestId = dropId
                                     nearestDistance = distance
                                 end
