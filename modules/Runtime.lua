@@ -205,13 +205,19 @@ return function(ctx)
                             end
                             lastHealth = hp
                             targetMissingSince = nil
-                            if hp ~= nil and canRecover
-                                and now - lastProgress >= 22 then
-                                pcall(F.recoverStory, "damage stalled", false)
+                            local lastAttack = math.max(
+                                S.StoryLastAttackAt or phaseSince, phaseSince)
+                            local attackStalled = now - lastAttack >= 12
+                            local damageStalled = hp ~= nil
+                                and now - lastProgress >= 22
+                            if canRecover and (attackStalled or damageStalled) then
+                                local reason = attackStalled
+                                    and "no attack attempts" or "damage stalled"
+                                pcall(F.recoverStory, reason, false)
                                 trackedEnemy, lastHealth, lastProgress =
                                     nil, nil, now
                                 lastPhase = nil
-                                warn("[Slow Hub] Story combat recovered after stalled damage")
+                                warn("[Slow Hub] Story combat recovered: " .. reason)
                             end
                         else
                             trackedEnemy, lastHealth, lastProgress =
