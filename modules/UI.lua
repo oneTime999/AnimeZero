@@ -23,7 +23,7 @@ return function(ctx)
 
     local Story = Window:AddTab({Title = "Story", Icon = "book-open"})
     local Raids = Window:AddTab({Title = "Raids", Icon = "swords"})
-    local SkillsTab = Window:AddTab({Title = "Skills", Icon = "zap"})
+    local SkillsTab = Window:AddTab({Title = "Skills", Icon = "flame"})
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
     local Profiles = Window:AddTab({Title = "Profiles", Icon = "save"})
 
