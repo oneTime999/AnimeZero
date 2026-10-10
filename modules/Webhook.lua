@@ -473,7 +473,8 @@ return function(ctx)
         if options.Rewards then
             local lines = rewardLines(report, isTest)
             local rewards = #lines > 0 and table.concat(lines, "\n")
-                or (report.RewardsStatus == "empty" and "No rewards earned"
+                or (#report.Rewards > 0 and "No selected reward types matched"
+                    or report.RewardsStatus == "empty" and "No rewards earned"
                     or "Rewards not captured")
             if #rewards > 1000 then
                 rewards = rewards:sub(1, 995) .. "..."
@@ -601,6 +602,11 @@ return function(ctx)
         -- Avoid counting a brief hide/show animation as a second round.
         if report.Signature == lastRecordedSignature
             and now - lastRecordedAt < 4 then return end
+
+        if #report.Rewards == 0 and report.RewardsStatus ~= "empty" then
+            warn("[Slow Hub] Rewards not captured, status: "
+                .. tostring(report.RewardsStatus))
+        end
 
         recordSession(report)
         lastRecordedSignature, lastRecordedAt = report.Signature, now
