@@ -305,5 +305,6 @@ return function(ctx)
 
     ctx.Fluent = Fluent
     ctx.Window = Window
+    ctx.Settings = Settings
     ctx.Profiles = Profiles
 end
