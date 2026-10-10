@@ -7,7 +7,7 @@ return function(ctx)
     local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
 
-    local Fluent, AutoSave, SaveManager = ctx.Fluent, ctx.AutoSave, ctx.SaveManager
+    local Fluent, AutoSave, SaveManager = ctx.Fluent, ctx.AutoSave or {Available = false}, ctx.SaveManager
     local afkConn = Player.Idled:Connect(function()
         if not S.Alive or not C.AFK then return end
         pcall(function()
@@ -20,17 +20,32 @@ return function(ctx)
     local pendingRespawnAt, pendingReason = nil, nil
     local observedCharacter = nil
 
-    local function queueStoryRecovery(reason)
-        if not S.Alive or not S.Enabled then return end
-        pendingRespawnAt = os.clock()
-        pendingReason = reason
+    local function queueFarmRecovery(reason)
+        if not S.Alive or not (S.Enabled or Raid.Enabled or Zzzz.Enabled) then return end
+        if S.Enabled then
+            pendingRespawnAt = os.clock()
+            pendingReason = reason
+            S.Target = nil
+            S.BossTarget = nil
+            S.Status = "Waiting for respawn: " .. reason
+        end
         F.cancelTravel()
         F.releaseHold()
-        S.Target = nil
-        S.BossTarget = nil
+        if Raid.Enabled then
+            Raid.Target = nil
+            Raid.BossEngaged = false
+            Raid.BossGoneAt = nil
+            Raid.Status = "Waiting for respawn: " .. reason
+        end
+        if Zzzz.Enabled then
+            Zzzz.Target = nil
+            Zzzz.LastHealth = nil
+            Zzzz.LastProgressAt = nil
+            Zzzz.PositionFailedAt = nil
+            Zzzz.Status = "Waiting for respawn: " .. reason
+        end
         if F.resetSkillQueue then F.resetSkillQueue() end
         S.LastM1 = 0
-        S.Status = "Waiting for respawn: " .. reason
     end
 
     local function attachCharacter(character)
@@ -47,14 +62,14 @@ return function(ctx)
         end
         humanoidDiedConn = humanoid.Died:Connect(function()
             if Player.Character == character then
-                queueStoryRecovery("character died")
+                queueFarmRecovery("character died")
             end
         end)
     end
 
     characterAddedConn = Player.CharacterAdded:Connect(function(character)
-        if S.Enabled and S.Alive then
-            queueStoryRecovery("character respawned")
+        if S.Alive then
+            queueFarmRecovery("character respawned")
         end
         task.spawn(attachCharacter, character)
     end)
@@ -91,8 +106,18 @@ return function(ctx)
         end
     end
 
+    local lastTravelErrorAt = -math.huge
     S.holdConn = RunService.Heartbeat:Connect(function()
-        pcall(F.updateTravel)
+        if S.Alive and S.Enabled then
+            local ok, err = pcall(F.updateTravel)
+            if not ok then
+                F.cancelTravel()
+                if os.clock() - lastTravelErrorAt >= 15 then
+                    lastTravelErrorAt = os.clock()
+                    warn("[Slow Hub] Travel recovered: " .. tostring(err))
+                end
+            end
+        end
         if not S.Alive or not (S.Enabled or Raid.Enabled or Zzzz.Enabled) or not S.HoldCF or S.Travel then return end
         local cf = S.HoldCF
         local char, root = F.character()
@@ -118,24 +143,41 @@ return function(ctx)
     Env.PcdBehindStable = S
     Env.PcdHxHHub = S
 
+    local lastStepErrorAt = {}
+    local function safeStep(mode, callback)
+        local ok, err = pcall(callback)
+        if ok then return end
+        local now = os.clock()
+        if mode == "Story" then
+            S.Status = "Retrying Story after an error"
+        elseif mode == "Raid" then
+            Raid.Status = "Retrying Raid after an error"
+        else
+            Zzzz.Status = "Retrying Zzz World after an error"
+        end
+        if now - (lastStepErrorAt[mode] or -math.huge) >= 12 then
+            lastStepErrorAt[mode] = now
+            warn("[Slow Hub] " .. mode .. " step error: " .. tostring(err))
+            F.cancelTravel()
+            F.releaseHold()
+            if F.resetSkillQueue then F.resetSkillQueue() end
+        end
+    end
+
     task.spawn(function()
         while S.Alive and not Fluent.Unloaded do
             if ctx.EnforceFarmExclusivity then
-                pcall(ctx.EnforceFarmExclusivity)
+                safeStep("Mode sync", ctx.EnforceFarmExclusivity)
             end
-            local ok, err = pcall(function()
-                if S.Enabled then F.syncHUDProgress() end
-                F.step()
-            end)
-            if not ok then
-                S.Status = "Error: " .. tostring(err)
+            if S.Enabled then
+                safeStep("HUD sync", F.syncHUDProgress)
+                safeStep("Story", F.step)
             end
             if Raid.Enabled then
-                local raidOk = pcall(F.raidStep)
-                if not raidOk then Raid.Status = "Raid temporarily unavailable" end
+                safeStep("Raid", F.raidStep)
             end
             if Zzzz.Enabled then
-                pcall(F.zzzzStep)
+                safeStep("Zzz", F.zzzzStep)
             end
             task.wait(0.05)
         end
