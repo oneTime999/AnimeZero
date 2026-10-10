@@ -63,6 +63,24 @@ return function(ctx)
             end
             task.wait(0.9)
 
+            -- One-time migration: an older autosave may still set Below,
+            -- even though the original default has been restored to Behind.
+            local migrationPath = SaveManager.Folder .. "/settings/behind-default-v1.txt"
+            local positionOption = Fluent.Options and Fluent.Options.V11_Position
+            if not isfile(migrationPath) then
+                local migrated = true
+                if positionOption and positionOption.Value == "Below" then
+                    positionOption:SetValue("Behind")
+                    local ok, saved = pcall(function()
+                        return SaveManager:Save(AutoSave.Name)
+                    end)
+                    migrated = ok and saved == true
+                end
+                if migrated then
+                    pcall(writefile, migrationPath, "1")
+                end
+            end
+
             AutoSave.Ready = true
         end)
 
