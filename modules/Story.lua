@@ -35,10 +35,16 @@ return function(ctx)
         if not folder or not spawn then return false end
 
         for _, model in ipairs(folder:GetChildren()) do
-            if model:IsA("Model") and F.living(model)
-                and not (S.CompletedEnemySnapshot and S.CompletedEnemySnapshot[model]) then
+            if model:IsA("Model") and F.living(model) then
+                local old = S.CompletedEnemySnapshot
+                    and S.CompletedEnemySnapshot[model]
+                local hp = F.hpOf(model)
+                local reused = type(old) == "table"
+                    and old.Health ~= nil and hp ~= nil
+                    and hp > old.Health + 0.01
                 local part = F.partOf(model)
-                if part and (part.Position - spawn).Magnitude <= C.WaveRadius then
+                if (not old or reused) and part
+                    and (part.Position - spawn).Magnitude <= C.WaveRadius then
                     return true
                 end
             end
@@ -675,7 +681,7 @@ return function(ctx)
             local finishedFolder = F.enemyFolder()
             if finishedFolder then
                 for _, mob in ipairs(finishedFolder:GetChildren()) do
-                    S.CompletedEnemySnapshot[mob] = true
+                    S.CompletedEnemySnapshot[mob] = {Health = F.hpOf(mob)}
                 end
             end
             F.setPhase("COMPLETED", "Boss cleared; waiting for the next round")
