@@ -345,27 +345,37 @@ return function(ctx)
         end
     end)
 
+    -- Never issue endAction during live combat. The previous loop could
+    -- accidentally request a restart while enemies were still alive.
     task.spawn(function()
+        local lastReplayRequestAt = -math.huge
         while S.Alive and not Fluent.Unloaded do
             task.wait(1)
             if S.Alive and S.Enabled and C.AutoReplay then
                 local now = os.clock()
-                local finishingBoss = S.Phase == "KILL_BOSS" and S.BossClearSince
-                    and now - S.BossClearSince < 1.5
-                local finishingStory = S.Phase == "FINAL_TELEPORT"
-                    or (S.Phase == "COMPLETED" and S.FinishAt
-                        and now - S.FinishAt < 1.5)
+                local finished = S.Phase == "COMPLETED"
+                    and now - (S.FinishAt or now) >= 2
+                if ctx.ReadMatchStore then
+                    local ok, _, matchPhase = pcall(ctx.ReadMatchStore)
+                    finished = finished or (ok and matchPhase == "finished")
+                end
+                local gui = Player:FindFirstChildOfClass("PlayerGui")
+                local endScreen = gui and gui:FindFirstChild("EndScreen")
+                finished = finished or (endScreen
+                    and endScreen:IsA("ScreenGui") and endScreen.Enabled)
                 local holdingResult = false
                 if ctx.WebhookPauseReplay then
                     local ok, blocked = pcall(ctx.WebhookPauseReplay)
                     holdingResult = ok and blocked == true
                 end
-                if not finishingBoss and not finishingStory and not holdingResult then
+                if finished and not holdingResult
+                    and now - lastReplayRequestAt >= 3 then
                     local remote = RS:FindFirstChild("endAction")
                     if remote and remote:IsA("RemoteEvent") then
-                        pcall(function()
+                        local ok = pcall(function()
                             remote:FireServer(buffer.fromstring("\001"))
                         end)
+                        if ok then lastReplayRequestAt = now end
                     end
                 end
             end
