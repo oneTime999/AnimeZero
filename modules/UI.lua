@@ -24,10 +24,10 @@ return function(ctx)
 
     local Story = Window:AddTab({Title = "Story", Icon = "book-open"})
     local Raids = Window:AddTab({Title = "Raids", Icon = "swords"})
-    local ZzzzTab = Window:AddTab({Title = "Auto Zzz World", Icon = "infinity"})
-    local SkillsTab = Window:AddTab({Title = "Skills", Icon = "flame"})
-    local Webhooks = Window:AddTab({Title = "Webhooks", Icon = "bell"})
+    local ZzzzTab = Window:AddTab({Title = "Zzz World", Icon = "infinity"})
+    local Combat = Window:AddTab({Title = "Combat", Icon = "flame"})
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
+    local Webhooks = Window:AddTab({Title = "Webhooks", Icon = "bell"})
     local Profiles = Window:AddTab({Title = "Profiles", Icon = "save"})
 
     local storyToggle
@@ -182,17 +182,29 @@ return function(ctx)
         end
     })
 
-    SkillsTab:AddSection("Skill Automation")
+    Combat:AddSection("Basic Attacks")
 
-    SkillsTab:AddToggle("V11_AutoSkills", {
+    Combat:AddToggle("V11_M1", {
+        Title = "Auto M1", Default = true,
+        Callback = function(value) C.M1 = value end
+    })
+    Combat:AddSlider("V11_M1Delay", {
+        Title = "M1 Interval", Min = 0.1, Max = 1.5,
+        Default = 0.2, Rounding = 2,
+        Callback = function(value) C.M1Interval = value end
+    })
+
+    Combat:AddSection("Automatic Skills")
+
+    Combat:AddToggle("V11_AutoSkills", {
         Title = "Auto Skills", Description = "Automatically use enabled abilities", Default = true,
         Callback = function(value) C.Skills = value end
     })
-    SkillsTab:AddToggle("V11_SkillsOnRubble", {
+    Combat:AddToggle("V11_SkillsOnRubble", {
         Title = "Skills on Rubble", Description = "Use abilities while breaking barriers", Default = false,
         Callback = function(value) C.SkillsOnBorder = value end
     })
-    SkillsTab:AddSlider("Stable_SkillHold", {
+    Combat:AddSlider("Stable_SkillHold", {
         Title = "Key Press Duration", Description = "How long each skill key is held",
         Min = 0.02, Max = 0.4, Default = 0.06, Rounding = 2,
         Callback = function(value) C.SkillKeyHold = value end
@@ -200,7 +212,7 @@ return function(ctx)
 
     for _, index in ipairs({4, 1, 2, 3}) do
         local skill = Skill[index]
-        local section = SkillsTab:AddSection(skill.Name .. " (" .. skill.Key.Name .. ")")
+        local section = Combat:AddSection(skill.Name .. " (" .. skill.Key.Name .. ")")
         section:AddToggle("V11_SkillEnabled" .. index, {
             Title = "Auto " .. skill.Name, Default = true,
             Callback = function(value) skill.Enabled = value end
@@ -212,7 +224,7 @@ return function(ctx)
         })
     end
 
-    Settings:AddSection("Auto Replay")
+    Settings:AddSection("Farm Automation")
 
     Settings:AddToggle("Stable_AutoReplay", {
         Title = "Auto Replay",
@@ -221,7 +233,16 @@ return function(ctx)
         Callback = function(value) C.AutoReplay = value end
     })
 
-    Settings:AddSection("Movement")
+    Settings:AddToggle("HxH_AutoCollectDrops", {
+        Title = "Auto Collect Drops",
+        Description = "Collect nearby Coins and Health without teleporting",
+        Default = false,
+        Callback = function(enabled)
+            C.AutoCollectDrops = enabled
+        end
+    })
+
+    Settings:AddSection("Positioning")
 
     Settings:AddDropdown("V11_Position", {
         Title = "Enemy Position",
@@ -234,24 +255,6 @@ return function(ctx)
         Title = "Enemy Distance", Description = "Offset from the target", Min = 1, Max = 12,
         Default = 3, Rounding = 1,
         Callback = function(value) C.Distance = value end
-    })
-    Settings:AddDropdown("V11_TravelMethod", {
-        Title = "Travel Method",
-        Description = "Tween for smooth travel, Teleport for instant moves",
-        Values = {"Tween", "Teleport"},
-        Default = "Tween",
-        Callback = function(value) C.TravelMethod = value end
-    })
-    Settings:AddSlider("V11_TravelSpeed", {
-        Title = "Tween Speed (studs/s)", Min = 60, Max = 300,
-        Default = 170, Rounding = 0,
-        Callback = function(value) C.TravelSpeed = value end
-    })
-    Settings:AddSection("Combat")
-
-    Settings:AddToggle("V11_M1", {
-        Title = "Auto M1", Default = true,
-        Callback = function(value) C.M1 = value end
     })
     Settings:AddToggle("V11_Noclip", {
         Title = "Noclip", Default = true,
@@ -267,21 +270,21 @@ return function(ctx)
         end
     })
 
-    Settings:AddSlider("V11_M1Delay", {
-        Title = "M1 Interval", Min = 0.1, Max = 1.5,
-        Default = 0.2, Rounding = 2,
-        Callback = function(value) C.M1Interval = value end
+    Settings:AddSection("Travel")
+
+    Settings:AddDropdown("V11_TravelMethod", {
+        Title = "Travel Method",
+        Description = "Tween for smooth travel, Teleport for instant moves",
+        Values = {"Tween", "Teleport"},
+        Default = "Tween",
+        Callback = function(value) C.TravelMethod = value end
+    })
+    Settings:AddSlider("V11_TravelSpeed", {
+        Title = "Tween Speed (studs/s)", Min = 60, Max = 300,
+        Default = 170, Rounding = 0,
+        Callback = function(value) C.TravelSpeed = value end
     })
     Settings:AddSection("General")
-
-    Settings:AddToggle("HxH_AutoCollectDrops", {
-        Title = "Auto Collect Drops",
-        Description = "Collect nearby Coins and Health without teleporting",
-        Default = false,
-        Callback = function(enabled)
-            C.AutoCollectDrops = enabled
-        end
-    })
 
     Settings:AddToggle("V11_AntiAFK", {
         Title = "Anti AFK", Default = true,
