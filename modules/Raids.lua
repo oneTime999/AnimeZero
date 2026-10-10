@@ -34,9 +34,9 @@ return function(ctx)
             Raid.BossEngaged = false
             Raid.BossGoneAt = nil
             Raid.Target = nil
-            Raid.ReplayUntil = os.clock() + 5
+            Raid.ReplayUntil = os.clock() + 1
             F.releaseHold()
-            Raid.Status = "Replay sent; waiting 5 seconds"
+            Raid.Status = "Replay sent; waiting 1 second"
         else
             Raid.Status = "Waiting to retry replay"
         end
