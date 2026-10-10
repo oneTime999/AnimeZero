@@ -32,11 +32,11 @@ end
 local ctx = loadModule("Core")
 local modules = {
     "Enemies", "Movement", "Skills", "Rubble", "Story", "Raids",
-    "ZzzzWorld", "UI", "Drops", "RunRewards", "Webhook", "Profiles", "Runtime"
+    "ZzzzWorld", "UI", "Drops", "RunRewards", "Webhook", "Profiles", "Runtime", "Recovery"
 }
 
 -- Nonessential integrations should never stop all three farms from starting.
-local optional = {Drops = true, RunRewards = true, Webhook = true, Profiles = true}
+local optional = {Drops = true, RunRewards = true, Webhook = true, Profiles = true, Recovery = true}
 for _, name in ipairs(modules) do
     local loaded, moduleOrError = pcall(loadModule, name)
     if not loaded then
