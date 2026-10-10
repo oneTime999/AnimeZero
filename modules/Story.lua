@@ -412,12 +412,22 @@ return function(ctx)
 
         if S.Phase == "WAIT_AREA_CHANGE" then
             F.readDifficulty()
-            if S.HUDDisplayedArea == S.BorderNumber
-                and os.clock() - S.HUDLastSeen < 1.5 then
-                S.Status = "Waiting for area " .. (S.BorderNumber + 1) .. " in game"
-            elseif os.clock() - S.HUDLastSeen >= 1.5 then
+            local now = os.clock()
+            -- The HUD may keep showing the old area after the rubble is
+            -- destroyed. A newly spawned next wave is stronger evidence.
+            local nextWaveReady = F.nextWaveSpawned()
+            if nextWaveReady or S.HUDDisplayedArea == S.BorderNumber + 1 then
                 S.HUDPreviousArea = S.BorderNumber
-                S.HUDSyncGraceUntil = os.clock() + 1.5
+                S.HUDSyncGraceUntil = now + 1.5
+                F.toWave(S.BorderNumber + 1, 1)
+                return
+            end
+            if S.HUDDisplayedArea == S.BorderNumber
+                and now - S.HUDLastSeen < 1.5 then
+                S.Status = "Waiting for area " .. (S.BorderNumber + 1) .. " in game"
+            elseif now - S.HUDLastSeen >= 1.5 then
+                S.HUDPreviousArea = S.BorderNumber
+                S.HUDSyncGraceUntil = now + 1.5
                 F.toWave(S.BorderNumber + 1, 1)
             end
             return
