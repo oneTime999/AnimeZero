@@ -67,12 +67,30 @@ return function(ctx)
 
     local nextSkillIndex = 1
     local dispatching = false
+    local dispatchStarted = 0
+    local generation = 0
+
+    function F.resetSkillQueue()
+        generation += 1
+        dispatching = false
+        dispatchStarted = 0
+        for _, skill in ipairs(Skill) do
+            skill.Busy = false
+            skill.Last = -math.huge
+        end
+    end
 
     function F.autoSkills()
-        if not C.Skills or not (S.Enabled or Raid.Enabled or Zzzz.Enabled)
-            or dispatching then return end
+        if not C.Skills or not (S.Enabled or Raid.Enabled or Zzzz.Enabled) then
+            return
+        end
 
         local now = os.clock()
+        if dispatching and now - dispatchStarted > 3 then
+            F.resetSkillQueue()
+            S.SkillStatus = "Skill input timeout: queue recovered"
+        end
+        if dispatching then return end
         for offset = 0, #Skill - 1 do
             local index = (nextSkillIndex + offset - 1) % #Skill + 1
             local skill = Skill[index]
@@ -81,6 +99,8 @@ return function(ctx)
                 nextSkillIndex = index % #Skill + 1
                 skill.Busy = true
                 dispatching = true
+                dispatchStarted = now
+                local token = generation
 
                 -- Queue inputs one at a time so simultaneous key presses
                 -- cannot cancel or overlap one another during a long farm.
@@ -89,9 +109,12 @@ return function(ctx)
                     if not ok then
                         S.SkillStatus = skill.Name .. ": " .. tostring(err)
                     end
-                    skill.Last = os.clock()
-                    skill.Busy = false
-                    dispatching = false
+                    if generation == token then
+                        skill.Last = os.clock()
+                        skill.Busy = false
+                        dispatching = false
+                        dispatchStarted = 0
+                    end
                 end)
                 return
             end
