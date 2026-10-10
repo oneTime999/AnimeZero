@@ -7,7 +7,6 @@ return function(ctx)
     local F = ctx.Functions
 
     local Fluent, AutoSave, SaveManager = ctx.Fluent, ctx.AutoSave, ctx.SaveManager
-    local Stat, RaidStat = ctx.StoryStatus, ctx.RaidStatus
     local afkConn = Player.Idled:Connect(function()
         if not S.Alive or not C.AFK then return end
         pcall(function()
@@ -95,17 +94,6 @@ return function(ctx)
                     end)
                 end
             end
-        end
-    end)
-
-    task.spawn(function()
-        while S.Alive and not Fluent.Unloaded do
-            pcall(function()
-                Stat:SetDesc(string.format("Mode: %s | Area: %d | Wave: %d/%d\n%s",
-                    S.Difficulty, S.BorderNumber, S.SubWave, S.ExpectedSubWaves, S.Status))
-                RaidStat:SetDesc(Raid.Status)
-            end)
-            task.wait(0.5)
         end
     end)
 
