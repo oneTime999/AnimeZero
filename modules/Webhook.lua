@@ -249,6 +249,7 @@ return function(ctx)
 
         local body = HttpService:JSONEncode({
             username = "Slow Hub",
+            content = "Player: ||" .. Player.Name .. "||",
             allowed_mentions = {parse = {}},
             embeds = {embed}
         })
