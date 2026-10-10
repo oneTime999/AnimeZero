@@ -4,6 +4,7 @@ return function(ctx)
     local Config = {
         Enabled = false,
         Url = "",
+        FarmTotals = true,
         Fields = {
             Result = true, Duration = true, Kills = true, Damage = true,
             EXP = true, GemsEarned = true, MVP = true, Rewards = true,
@@ -93,42 +94,108 @@ return function(ctx)
         return amount
     end
 
+    local Session = {
+        Rounds = 0,
+        Wins = 0,
+        Losses = 0,
+        Totals = {},
+        EXP = 0,
+        GemsEarned = 0,
+        Seconds = 0,
+        StartedAt = os.time()
+    }
+
+    local function resetSession()
+        Session.Rounds, Session.Wins, Session.Losses = 0, 0, 0
+        Session.Totals, Session.EXP, Session.GemsEarned = {}, 0, 0
+        Session.Seconds = 0
+        Session.StartedAt = os.time()
+    end
+
+    local function parseNumber(raw)
+        if type(raw) == "number" then return raw end
+        raw = clean(raw):gsub("[xX$]", ""):gsub("×", "")
+            :gsub("%s+", "")
+        local digits, suffix = raw:match("^([%d%.,]+)([kKmMbBtT]?)$")
+        if not digits then return nil end
+        if digits:find(",") and digits:find("%.") then
+            digits = digits:gsub(",", "")
+        elseif digits:find(",") then
+            if digits:match(",%d%d%d$") then
+                digits = digits:gsub(",", "")
+            else
+                digits = digits:gsub(",", ".")
+            end
+        elseif digits:match("%.%d%d%d$") then
+            digits = digits:gsub("%.", "")
+        end
+        local num = tonumber(digits)
+        if not num then return nil end
+        local scale = {k = 1e3, m = 1e6, b = 1e9, t = 1e12}
+        return num * (scale[suffix:lower()] or 1)
+    end
+
+    local function formatNumber(num)
+        if type(num) ~= "number" then return "0" end
+        if math.abs(num) >= 1e12 then return string.format("%.2fT", num / 1e12) end
+        if math.abs(num) >= 1e9 then return string.format("%.2fB", num / 1e9) end
+        local str = string.format("%.2f", num)
+        str = str:gsub("0+$", ""):gsub("%.$", "")
+        local integer, fraction = str:match("^(%-?%d+)(%.%d+)$")
+        if not integer then integer, fraction = str, "" end
+        local done
+        repeat
+            integer, done = integer:gsub("^(%-?%d+)(%d%d%d)", "%1,%2")
+        until done == 0
+        return integer .. fraction
+    end
+
+    local slotCategories = {
+        CoinSlot = "Coins",
+        DiceSlot = "Dice",
+        LuckyDiceSlot = "LuckyDice",
+        GemsSlot = "Gems",
+        EnchantGemsSlot = "EnchantGems",
+        Slot = "Items"
+    }
+
     local function getRewards(holder)
         local rewardFrame = holder:FindFirstChild("RewardsFrame")
         local cut = rewardFrame and rewardFrame:FindFirstChild("CutFrame")
         local grid = cut and cut:FindFirstChild("Holder")
-        local result, unique = {}, {}
-        if not grid then return result end
+        if not grid then return {} end
 
+        local byName, order = {}, {}
         for _, slot in ipairs(grid:GetChildren()) do
-            local category = ({
-                CoinSlot = "Coins",
-                DiceSlot = "Dice",
-                LuckyDiceSlot = "LuckyDice",
-                GemsSlot = "Gems",
-                EnchantGemsSlot = "EnchantGems",
-                Slot = "Items"
-            })[slot.Name]
-            if slot:IsA("GuiObject") and slot.Visible
-                and category and Config.Fields[category] then
-                local main = slot:FindFirstChild("Main")
-                if main and main:IsA("GuiObject") and main.Visible then
-                    local name = rewardNames[slot.Name]
-                    if slot.Name == "Slot" then
-                        name = clean(getText(main, "Txt") or getText(main, "TxtShadow"))
+            local category = slotCategories[slot.Name]
+            local main = slot:FindFirstChild("Main")
+            if category and slot:IsA("GuiObject") and slot.Visible
+                and main and main:IsA("GuiObject") and main.Visible then
+                local name = rewardNames[slot.Name]
+                if category == "Items" then
+                    name = clean(getText(main, "Txt") or getText(main, "TxtShadow"))
+                end
+                if name and name ~= "" then
+                    local raw = clean(getText(main, "Amount")
+                        or getText(main, "AmountShadow"))
+                    local amount = parseNumber(raw)
+                    local key = category .. "|" .. name
+                    local item = byName[key]
+                    if not item then
+                        item = {Name = name, Category = category, Amount = 0,
+                            Numeric = amount ~= nil, Raw = raw}
+                        byName[key] = item
+                        table.insert(order, item)
                     end
-                    if name and name ~= "" then
-                        local amount = amountOf(main)
-                        local value = name .. (amount ~= "" and (" " .. amount) or "")
-                        if not unique[value] then
-                            unique[value] = true
-                            table.insert(result, value)
-                        end
+                    if amount then
+                        item.Amount = item.Amount + amount
+                    else
+                        item.Numeric = false
                     end
                 end
             end
         end
-        return result
+        return order
     end
 
     local function getStats(holder)
@@ -147,6 +214,14 @@ return function(ctx)
         return found
     end
 
+    local function secondsOf(value)
+        local h, m, s = clean(value):match("^(%d+):(%d+):(%d+)$")
+        if h then return tonumber(h) * 3600 + tonumber(m) * 60 + tonumber(s) end
+        local min, sec = clean(value):match("^(%d+):(%d+)$")
+        if min then return tonumber(min) * 60 + tonumber(sec) end
+        return 0
+    end
+
     local function readResult(screen)
         local holder = screen:FindFirstChild("Holder")
         if not holder then return nil end
@@ -160,18 +235,41 @@ return function(ctx)
         if not win and not defeat then return nil end
 
         local stats = getStats(holder)
-        if not stats["Play Time"] then return nil end
         local rewards = getRewards(holder)
         local mvp = clean(getText(center, "MVPResult"))
+        local rewardSignature = {}
+        for _, reward in ipairs(rewards) do
+            table.insert(rewardSignature, reward.Name .. ":"
+                .. tostring(reward.Amount) .. ":" .. reward.Raw)
+        end
         local signature = table.concat({
             result, stats["Play Time"] or "", stats["Damage Dealt"] or "",
             stats["Enemies Killed"] or "", stats["EXP Earned"] or "",
-            stats["Gems Earned"] or "", mvp, table.concat(rewards, "|")
+            stats["Gems Earned"] or "", mvp, table.concat(rewardSignature, "|")
         }, "\n")
         return {
             Win = win, Stats = stats, Rewards = rewards,
             MVP = mvp, Signature = signature
         }
+    end
+
+    local function recordSession(report)
+        Session.Rounds = Session.Rounds + 1
+        if report.Win then
+            Session.Wins = Session.Wins + 1
+        else
+            Session.Losses = Session.Losses + 1
+        end
+        Session.EXP = Session.EXP + (parseNumber(report.Stats["EXP Earned"]) or 0)
+        Session.GemsEarned = Session.GemsEarned
+            + (parseNumber(report.Stats["Gems Earned"]) or 0)
+        Session.Seconds = Session.Seconds + secondsOf(report.Stats["Play Time"])
+        for _, reward in ipairs(report.Rewards) do
+            if reward.Numeric then
+                local key = reward.Category .. "|" .. reward.Name
+                Session.Totals[key] = (Session.Totals[key] or 0) + reward.Amount
+            end
+        end
     end
 
     local function httpRequest()
@@ -292,6 +390,26 @@ return function(ctx)
             Rewards = rewards
         }
     end
+
+    Webhooks:AddSection("Farm Session")
+    Webhooks:AddToggle("HxH_WebhookFarmTotals", {
+        Title = "Show Accumulated Farm Totals",
+        Description = "Each reward shows this round and the session total",
+        Default = true,
+        Callback = function(value) Config.FarmTotals = value end
+    })
+    Webhooks:AddButton({
+        Title = "Reset Farm Session",
+        Description = "Clear accumulated rewards and round counters for this server",
+        Callback = function()
+            resetSession()
+            Fluent:Notify({
+                Title = "Farm Session",
+                Content = "Accumulated farm totals reset",
+                Duration = 4
+            })
+        end
+    })
 
     Webhooks:AddSection("Notifications")
     Webhooks:AddButton({
