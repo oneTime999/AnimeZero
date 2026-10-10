@@ -258,6 +258,7 @@ return function(ctx)
             local oldArea = S.BorderNumber
             local now = os.clock()
             if S.HUDDisplayedArea == oldArea and now - S.HUDLastSeen < 1.5 then
+                S.AreaWaitStarted = os.clock()
                 F.setPhase("WAIT_AREA_CHANGE", "Rubble cleared; waiting for the game to advance")
             else
                 S.HUDPreviousArea = oldArea
@@ -470,10 +471,20 @@ return function(ctx)
             end
             if S.HUDDisplayedArea == S.BorderNumber
                 and now - S.HUDLastSeen < 1.5 then
-                S.Status = "Waiting for area " .. (S.BorderNumber + 1) .. " in game"
+                if now - (S.AreaWaitStarted or now) >= 18 then
+                    -- The old HUD can remain visible after rubble disappears.
+                    -- Advance provisionally; normal HUD sync can still correct
+                    -- the area once the server reports a reliable new state.
+                    S.HUDPreviousArea = S.BorderNumber
+                    S.HUDSyncGraceUntil = now + 12
+                    F.toWave(S.BorderNumber + 1, 1)
+                    S.Status = "Retrying progression after stale area HUD"
+                else
+                    S.Status = "Waiting for area " .. (S.BorderNumber + 1) .. " in game"
+                end
             elseif now - S.HUDLastSeen >= 1.5 then
                 S.HUDPreviousArea = S.BorderNumber
-                S.HUDSyncGraceUntil = now + 1.5
+                S.HUDSyncGraceUntil = now + 2
                 F.toWave(S.BorderNumber + 1, 1)
             end
             return
