@@ -15,6 +15,17 @@ return function(ctx)
         S.HoldCF = nil
     end
 
+    function F.holdCombatPosition()
+        if C.Position == "Below" and C.Noclip and not S.Travel then
+            local _, root = F.character()
+            if root then
+                S.HoldCF = S.HoldCF or root.CFrame
+                return
+            end
+        end
+        F.releaseHold()
+    end
+
     function F.setPosition(cf, tolerance, hold)
         local char, root = F.character()
         if not char then return false end
@@ -134,10 +145,23 @@ return function(ctx)
 
         local pos = part.Position + offset + Vector3.new(0, C.Height, 0)
         local look = Vector3.new(part.Position.X, pos.Y, part.Position.Z)
+        local up = Vector3.yAxis
+
+        if C.Position == "Below" then
+            -- Face the enemy above instead of looking horizontally under the map.
+            look = part.Position
+            if (look - pos).Magnitude > 0.01 then
+                up = cf.LookVector
+                if math.abs((look - pos).Unit:Dot(up)) > 0.95 then
+                    up = cf.RightVector
+                end
+            end
+        end
+
         if (pos - look).Magnitude < 0.01 then
             look = pos + cf.LookVector
         end
-        local destination = CFrame.lookAt(pos, look)
+        local destination = CFrame.lookAt(pos, look, up)
 
         if C.TravelMethod == "Tween" then
             local _, root = F.character()
