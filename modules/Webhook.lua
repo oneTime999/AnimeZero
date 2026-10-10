@@ -7,7 +7,9 @@ return function(ctx)
         FarmTotals = true,
         Fields = {
             Result = true, Duration = true, Difficulty = true, Kills = true, Damage = true,
-            EXP = true, GemsEarned = true
+            EXP = true, GemsEarned = true,
+            Rewards = true, Coins = true, RewardGems = true,
+            TraitRerolls = true, Materials = true
         }
     }
 
@@ -47,6 +49,13 @@ return function(ctx)
     addFieldOption("HxH_WebhookDamage", "Damage Dealt", "Damage")
     addFieldOption("HxH_WebhookEXP", "EXP Earned", "EXP")
     addFieldOption("HxH_WebhookGemsEarned", "Gems Earned (Stats)", "GemsEarned")
+    Webhooks:AddSection("Rewards - RunStore")
+    addFieldOption("HxH_WebhookRewards", "Show Earned Rewards", "Rewards")
+    addFieldOption("HxH_WebhookCoins", "Coins / Gold", "Coins")
+    addFieldOption("HxH_WebhookRewardGems", "Gems", "RewardGems")
+    addFieldOption("HxH_WebhookTraitRerolls", "Trait Rerolls", "TraitRerolls")
+    addFieldOption("HxH_WebhookMaterials", "Materials", "Materials")
+
     local function getText(parent, name)
         local label = parent and parent:FindFirstChild(name, true)
         if label and (label:IsA("TextLabel") or label:IsA("TextButton")) then
@@ -67,6 +76,7 @@ return function(ctx)
         Losses = 0,
         EXP = 0,
         GemsEarned = 0,
+        Rewards = {},
         Seconds = 0,
         StartedAt = os.time()
     }
@@ -74,6 +84,7 @@ return function(ctx)
     local function resetSession()
         Session.Rounds, Session.Wins, Session.Losses = 0, 0, 0
         Session.EXP, Session.GemsEarned = 0, 0
+        Session.Rewards = {}
         Session.Seconds = 0
         Session.StartedAt = os.time()
     end
@@ -198,9 +209,14 @@ return function(ctx)
         else
             Session.Losses = Session.Losses + 1
         end
-        Session.EXP = Session.EXP + (parseNumber(report.Stats["EXP Earned"]) or 0)
+        Session.EXP = Session.EXP
+            + (report.RawEXP or parseNumber(report.Stats["EXP Earned"]) or 0)
         Session.GemsEarned = Session.GemsEarned
-            + (parseNumber(report.Stats["Gems Earned"]) or 0)
+            + (report.RawGems or parseNumber(report.Stats["Gems Earned"]) or 0)
+        for _, reward in ipairs(report.Rewards or {}) do
+            Session.Rewards[reward.Name] =
+                (Session.Rewards[reward.Name] or 0) + reward.Amount
+        end
         Session.Seconds = Session.Seconds + secondsOf(report.Stats["Play Time"])
     end
 
@@ -293,6 +309,27 @@ return function(ctx)
         end
         addField(options.GemsEarned, "Gems Earned", earnedGems)
 
+        if options.Rewards then
+            local lines = {}
+            for _, item in ipairs(report.Rewards or {}) do
+                if options[item.Category] then
+                    local earned = "+" .. formatNumber(item.Amount)
+                    if Config.FarmTotals and not isTest then
+                        earned = earned .. " ("
+                            .. formatNumber(Session.Rewards[item.Name] or item.Amount)
+                            .. " total)"
+                    end
+                    table.insert(lines, item.Name .. ": " .. earned)
+                end
+            end
+            local content = #lines > 0 and table.concat(lines, "\n")
+                or (report.Source == "RunStore"
+                    and "No rewards in selected categories"
+                    or "Rewards unavailable from UI fallback")
+            if #content > 1000 then content = content:sub(1, 995) .. "..." end
+            addField(true, "Rewards", content, false)
+        end
+
         if Config.FarmTotals and not isTest then
             addField(true, "Farm Session",
                 "Rounds: " .. Session.Rounds
@@ -307,7 +344,7 @@ return function(ctx)
                 or "Anime Zero - Match Results",
             color = isTest and 3447003
                 or (options.Result and (report.Win and 5763719 or 15548997) or 9807270),
-            description = isTest and "Test message with example match statistics." or nil,
+            description = isTest and "Test message with example match statistics and rewards." or nil,
             fields = fields,
             footer = {text = isTest and "Slow Hub • Test Notification"
                 or "Slow Hub • Anime Zero"}
@@ -330,19 +367,26 @@ return function(ctx)
                 ["EXP Earned"] = "3900",
                 ["Gems Earned"] = "200"
             },
+            Source = "RunStore",
+            Rewards = {
+                {Name = "Coins", Category = "Coins", Amount = 1000},
+                {Name = "Gems", Category = "RewardGems", Amount = 200},
+                {Name = "Trait Rerolls", Category = "TraitRerolls", Amount = 3},
+                {Name = "Material #101", Category = "Materials", Amount = 2}
+            },
         }
     end
 
     Webhooks:AddSection("Farm Session")
     Webhooks:AddToggle("HxH_WebhookFarmTotals", {
         Title = "Show Accumulated Farm Totals",
-        Description = "Show accumulated EXP, Gems, wins and total play time",
+        Description = "Show rewards, EXP, Gems and session totals",
         Default = true,
         Callback = function(value) Config.FarmTotals = value end
     })
     Webhooks:AddButton({
         Title = "Reset Farm Session",
-        Description = "Reset match counts, EXP, Gems and play time",
+        Description = "Reset rewards, match results and total play time",
         Callback = function()
             resetSession()
             Fluent:Notify({
