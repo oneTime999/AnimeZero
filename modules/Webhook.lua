@@ -7,9 +7,7 @@ return function(ctx)
         FarmTotals = true,
         Fields = {
             Result = true, Duration = true, Difficulty = true, Kills = true, Damage = true,
-            EXP = true, GemsEarned = true, Rewards = true,
-            Coins = true, Dice = true, LuckyDice = true,
-            Gems = true, EnchantGems = true, Items = true
+            EXP = true, GemsEarned = true
         }
     }
 
@@ -49,16 +47,6 @@ return function(ctx)
     addFieldOption("HxH_WebhookDamage", "Damage Dealt", "Damage")
     addFieldOption("HxH_WebhookEXP", "EXP Earned", "EXP")
     addFieldOption("HxH_WebhookGemsEarned", "Gems Earned (Stats)", "GemsEarned")
-    addFieldOption("HxH_WebhookRewards", "Include Rewards Section", "Rewards")
-
-    Webhooks:AddSection("Reward Types")
-    addFieldOption("HxH_WebhookCoins", "Coins", "Coins")
-    addFieldOption("HxH_WebhookDice", "Dice", "Dice")
-    addFieldOption("HxH_WebhookLuckyDice", "Lucky Dice", "LuckyDice")
-    addFieldOption("HxH_WebhookGems", "Gems (Rewards)", "Gems")
-    addFieldOption("HxH_WebhookEnchantGems", "Enchant Gems", "EnchantGems")
-    addFieldOption("HxH_WebhookItems", "Other Item Drops", "Items")
-
     local function getText(parent, name)
         local label = parent and parent:FindFirstChild(name, true)
         if label and (label:IsA("TextLabel") or label:IsA("TextButton")) then
@@ -73,32 +61,10 @@ return function(ctx)
         return value:match("^%s*(.-)%s*$") or ""
     end
 
-    local rewardNames = {
-        CoinSlot = "Coins",
-        DiceSlot = "Dice",
-        LuckyDiceSlot = "Lucky Dice",
-        GemsSlot = "Gems",
-        EnchantGemsSlot = "Enchant Gems"
-    }
-
-    local function amountOf(main)
-        local amount = clean(getText(main, "Amount") or getText(main, "AmountShadow"))
-        if amount == "" then return "" end
-        local first = amount:sub(1, 1)
-        if first == "x" or first == "X" then
-            return "×" .. amount:sub(2):gsub("^%s+", "")
-        end
-        if amount:sub(1, 2) == "×" then return amount end
-        if first == "$" then return amount end
-        if amount:match("^[%d%.,]+[%a]*$") then return "×" .. amount end
-        return amount
-    end
-
     local Session = {
         Rounds = 0,
         Wins = 0,
         Losses = 0,
-        Totals = {},
         EXP = 0,
         GemsEarned = 0,
         Seconds = 0,
@@ -107,7 +73,7 @@ return function(ctx)
 
     local function resetSession()
         Session.Rounds, Session.Wins, Session.Losses = 0, 0, 0
-        Session.Totals, Session.EXP, Session.GemsEarned = {}, 0, 0
+        Session.EXP, Session.GemsEarned = 0, 0
         Session.Seconds = 0
         Session.StartedAt = os.time()
     end
@@ -146,108 +112,6 @@ return function(ctx)
         integer = integer:reverse():gsub("(%d%d%d)", "%1,")
             :reverse():gsub("^,", "")
         return integer .. fraction
-    end
-
-    local slotCategories = {
-        CoinSlot = "Coins",
-        DiceSlot = "Dice",
-        LuckyDiceSlot = "LuckyDice",
-        GemsSlot = "Gems",
-        EnchantGemsSlot = "EnchantGems",
-        Slot = "Items"
-    }
-
-    local function isShownWithin(object, boundary)
-        local cursor = object
-        while cursor and cursor ~= boundary do
-            if cursor:IsA("GuiObject") and not cursor.Visible then
-                return false
-            end
-            cursor = cursor.Parent
-        end
-        return cursor == boundary
-    end
-
-    local function scanRewardCards(container)
-        local collected, results = {}, {}
-        if not container then return results end
-
-        -- Real reward cards can be direct children or nested in a layout.
-        for _, slot in ipairs(container:GetDescendants()) do
-            if slot:IsA("GuiObject") and isShownWithin(slot, container) then
-                local main = slot:FindFirstChild("Main")
-                if main and main:IsA("GuiObject") and main.Visible then
-                    local category = slotCategories[slot.Name]
-                    if not category and main:FindFirstChild("AmountShadow", true) then
-                        category = "Items"
-                    end
-
-                    if category then
-                        local name = rewardNames[slot.Name]
-                        if not name then
-                            name = clean(getText(main, "Txt")
-                                or getText(main, "TxtShadow")
-                                or getText(main, "ItemName"))
-                        end
-
-                        local raw = clean(getText(main, "Amount")
-                            or getText(main, "AmountShadow"))
-                        if name and name ~= "" and (raw ~= "" or category == "Items") then
-                            local amount = parseNumber(raw)
-                            local key = category .. "|" .. name
-                            local item = collected[key]
-                            if not item then
-                                item = {
-                                    Name = name, Category = category,
-                                    Amount = 0, Numeric = amount ~= nil, Raw = raw
-                                }
-                                collected[key] = item
-                                table.insert(results, item)
-                            end
-                            if amount then
-                                item.Amount = item.Amount + amount
-                            else
-                                item.Numeric = false
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        return results
-    end
-
-    local function getRewards(holder)
-        local rewardsFrame = holder:FindFirstChild("RewardsFrame", true)
-        if not rewardsFrame then return {}, "missing" end
-
-        local cut = rewardsFrame:FindFirstChild("CutFrame")
-        local grid = cut and cut:FindFirstChild("Holder")
-        local rewards = scanRewardCards(grid or rewardsFrame)
-        if #rewards == 0 and grid then
-            rewards = scanRewardCards(rewardsFrame)
-        end
-        if #rewards > 0 then return rewards, "found" end
-
-        local empty = rewardsFrame:FindFirstChild("Empty")
-        if empty and empty:IsA("GuiObject") and empty.Visible then
-            return {}, "empty"
-        end
-        return {}, "pending"
-    end
-
-    local function getProfitFallback()
-        local gui = Player:FindFirstChildOfClass("PlayerGui")
-        if not gui then return {} end
-        for _, managerName in ipairs({"RunManage", "InfiniteManage"}) do
-            local manager = gui:FindFirstChild(managerName)
-            local sheet = manager and manager:FindFirstChild("Sheet")
-            local profits = sheet and sheet:FindFirstChild("Profits")
-            local list = profits and profits:FindFirstChild("List")
-            local result = scanRewardCards(list)
-            if #result > 0 then return result end
-        end
-        return {}
     end
 
     local function getStageDifficulty()
@@ -315,28 +179,14 @@ return function(ctx)
         if not win and not defeat then return nil end
 
         local stats = getStats(holder)
-        local rewards, rewardState = getRewards(holder)
-        if #rewards == 0 and rewardState ~= "empty" then
-            local profits = getProfitFallback()
-            if #profits > 0 then
-                rewards, rewardState = profits, "profits"
-            end
-        end
         local difficulty = getStageDifficulty()
-        local rewardSignature = {}
-        for _, reward in ipairs(rewards) do
-            table.insert(rewardSignature, reward.Name .. ":"
-                .. tostring(reward.Amount) .. ":" .. reward.Raw)
-        end
         local signature = table.concat({
             result, stats["Play Time"] or "", stats["Damage Dealt"] or "",
             stats["Enemies Killed"] or "", stats["EXP Earned"] or "",
-            stats["Gems Earned"] or "", difficulty or "", rewardState,
-            table.concat(rewardSignature, "|")
+            stats["Gems Earned"] or "", difficulty or ""
         }, "\n")
         return {
-            Win = win, Stats = stats, Rewards = rewards,
-            RewardsStatus = rewardState, Difficulty = difficulty,
+            Win = win, Stats = stats, Difficulty = difficulty,
             Signature = signature
         }
     end
@@ -352,12 +202,6 @@ return function(ctx)
         Session.GemsEarned = Session.GemsEarned
             + (parseNumber(report.Stats["Gems Earned"]) or 0)
         Session.Seconds = Session.Seconds + secondsOf(report.Stats["Play Time"])
-        for _, reward in ipairs(report.Rewards) do
-            if reward.Numeric then
-                local key = reward.Category .. "|" .. reward.Name
-                Session.Totals[key] = (Session.Totals[key] or 0) + reward.Amount
-            end
-        end
     end
 
     local function httpRequest()
@@ -411,27 +255,6 @@ return function(ctx)
         return nil, "Request sent; delivery status unavailable"
     end
 
-    local function rewardLines(report, isTest)
-        local lines = {}
-        for _, item in ipairs(report.Rewards) do
-            if Config.Fields[item.Category] then
-                local raw = item.Raw or ""
-                local label
-                if item.Numeric then
-                    label = "+" .. formatNumber(item.Amount)
-                    if Config.FarmTotals and not isTest then
-                        local key = item.Category .. "|" .. item.Name
-                        label = label .. " (" .. formatNumber(Session.Totals[key] or item.Amount) .. " total)"
-                    end
-                else
-                    label = raw ~= "" and raw or "x1"
-                end
-                table.insert(lines, item.Name .. ": " .. label)
-            end
-        end
-        return lines
-    end
-
     local function formatDuration(seconds)
         seconds = math.max(0, math.floor(seconds))
         return string.format("%02d:%02d:%02d",
@@ -470,18 +293,6 @@ return function(ctx)
         end
         addField(options.GemsEarned, "Gems Earned", earnedGems)
 
-        if options.Rewards then
-            local lines = rewardLines(report, isTest)
-            local rewards = #lines > 0 and table.concat(lines, "\n")
-                or (#report.Rewards > 0 and "No selected reward types matched"
-                    or report.RewardsStatus == "empty" and "No rewards earned"
-                    or "Rewards not captured")
-            if #rewards > 1000 then
-                rewards = rewards:sub(1, 995) .. "..."
-            end
-            addField(true, "Rewards", rewards, false)
-        end
-
         if Config.FarmTotals and not isTest then
             addField(true, "Farm Session",
                 "Rounds: " .. Session.Rounds
@@ -509,18 +320,9 @@ return function(ctx)
     end
 
     local function testReport()
-        local examples = {
-            {Name = "Coins", Category = "Coins", Amount = 1000, Numeric = true, Raw = "$1000"},
-            {Name = "Dice", Category = "Dice", Amount = 3, Numeric = true, Raw = "x3"},
-            {Name = "Lucky Dice", Category = "LuckyDice", Amount = 1, Numeric = true, Raw = "x1"},
-            {Name = "Gems", Category = "Gems", Amount = 200, Numeric = true, Raw = "x200"},
-            {Name = "Enchant Gems", Category = "EnchantGems", Amount = 5, Numeric = true, Raw = "x5"},
-            {Name = "Curse Ball", Category = "Items", Amount = 2, Numeric = true, Raw = "x2"}
-        }
         return {
             Win = true,
             Difficulty = "Hard",
-            RewardsStatus = "found",
             Stats = {
                 ["Play Time"] = "00:05:42",
                 ["Enemies Killed"] = "35",
@@ -528,20 +330,19 @@ return function(ctx)
                 ["EXP Earned"] = "3900",
                 ["Gems Earned"] = "200"
             },
-            Rewards = examples
         }
     end
 
     Webhooks:AddSection("Farm Session")
     Webhooks:AddToggle("HxH_WebhookFarmTotals", {
         Title = "Show Accumulated Farm Totals",
-        Description = "Each reward shows this round and the session total",
+        Description = "Show accumulated EXP, Gems, wins and total play time",
         Default = true,
         Callback = function(value) Config.FarmTotals = value end
     })
     Webhooks:AddButton({
         Title = "Reset Farm Session",
-        Description = "Clear accumulated rewards and round counters for this server",
+        Description = "Reset match counts, EXP, Gems and play time",
         Callback = function()
             resetSession()
             Fluent:Notify({
@@ -577,23 +378,6 @@ return function(ctx)
     local reportedThisOpening = false
     local lastRecordedSignature, lastRecordedAt = nil, -math.huge
 
-    local function storeBestReport(report)
-        if not report then return end
-        local function rank(value)
-            if not value then return -1 end
-            local state = value.RewardsStatus
-            local weight = state == "found" and 10000
-                or state == "profits" and 1000
-                or state == "empty" and 100 or 0
-            return weight + #value.Rewards
-        end
-        if rank(report) >= rank(lastReport) then
-            lastReport = report
-        elseif lastReport and not lastReport.Difficulty and report.Difficulty then
-            lastReport.Difficulty = report.Difficulty
-        end
-    end
-
     local function finishCapture(report)
         if reportedThisOpening or not report then return end
         reportedThisOpening = true
@@ -602,11 +386,6 @@ return function(ctx)
         -- Avoid counting a brief hide/show animation as a second round.
         if report.Signature == lastRecordedSignature
             and now - lastRecordedAt < 4 then return end
-
-        if #report.Rewards == 0 and report.RewardsStatus ~= "empty" then
-            warn("[Slow Hub] Rewards not captured, status: "
-                .. tostring(report.RewardsStatus))
-        end
 
         recordSession(report)
         lastRecordedSignature, lastRecordedAt = report.Signature, now
@@ -658,13 +437,13 @@ return function(ctx)
                             if openedAt == 0 then openedAt = os.clock() end
                             local found = readResult(screen)
                             if found then
-                                storeBestReport(found)
+                                lastReport = found
                                 lastSignature = found.Signature
                                 lastChangeAt = os.clock()
                             end
                         else
                             local final = readResult(screen)
-                            if final then storeBestReport(final) end
+                            if final then lastReport = final end
                             closeCapture()
                         end
                     end
@@ -685,19 +464,16 @@ return function(ctx)
             if found.Signature ~= lastSignature then
                 lastSignature, lastChangeAt = found.Signature, now
             end
-            storeBestReport(found)
+            lastReport = found
         end
 
         if lastReport then
             local stable = now - lastChangeAt
             local age = now - openedAt
-            -- Wait for reward slots to finish populating. The first
-            -- EndScreen frame often has stats but no drops yet.
-            local state = lastReport.RewardsStatus
-            if (state == "found" and age >= 0.65 and stable >= 0.65)
-                or (state == "empty" and age >= 1.15 and stable >= 0.45)
-                or (age >= 2.8 and stable >= 0.4)
-                or age >= 3.5 then
+            local statsReady = lastReport.Stats["Play Time"] ~= nil
+            if (age >= 0.45 and stable >= 0.25 and statsReady)
+                or (age >= 1.2 and stable >= 0.3)
+                or age >= 2 then
                 finishCapture(lastReport)
             end
         end
@@ -708,7 +484,7 @@ return function(ctx)
         observe()
         if not Config.Enabled then return false end
         return openedAt > 0 and not reportedThisOpening
-            and os.clock() - openedAt < 3.5
+            and os.clock() - openedAt < 2
     end
 
     task.spawn(function()
