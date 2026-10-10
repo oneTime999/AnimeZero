@@ -26,6 +26,7 @@ return function(ctx)
     local Raids = Window:AddTab({Title = "Raids", Icon = "swords"})
     local ZzzzTab = Window:AddTab({Title = "Auto Zzz World", Icon = "infinity"})
     local SkillsTab = Window:AddTab({Title = "Skills", Icon = "flame"})
+    local Webhooks = Window:AddTab({Title = "Webhooks", Icon = "bell"})
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
     local Profiles = Window:AddTab({Title = "Profiles", Icon = "save"})
 
@@ -306,5 +307,6 @@ return function(ctx)
     ctx.Fluent = Fluent
     ctx.Window = Window
     ctx.Settings = Settings
+    ctx.Webhooks = Webhooks
     ctx.Profiles = Profiles
 end
