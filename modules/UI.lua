@@ -13,8 +13,8 @@ return function(ctx)
     S.UI = Fluent
 
     local Window = Fluent:CreateWindow({
-        Title = "Pcd Fnl Boss",
-        SubTitle = "Story, Raids & Zzzz World",
+        Title = "Slow Hub",
+        SubTitle = "Anime Zero",
         TabWidth = 150,
         Size = UDim2.fromOffset(570, 480),
         Acrylic = false,
