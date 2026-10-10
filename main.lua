@@ -20,7 +20,7 @@ end
 local ctx = loadModule("Core")
 local modules = {
     "Enemies", "Movement", "Skills", "Rubble", "Story", "Raids",
-    "ZzzzWorld", "UI", "Profiles", "Runtime"
+    "ZzzzWorld", "UI", "Webhook", "Profiles", "Runtime"
 }
 
 for _, name in ipairs(modules) do
