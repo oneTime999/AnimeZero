@@ -576,6 +576,23 @@ return function(ctx)
     local reportedThisOpening = false
     local lastRecordedSignature, lastRecordedAt = nil, -math.huge
 
+    local function storeBestReport(report)
+        if not report then return end
+        local function rank(value)
+            if not value then return -1 end
+            local state = value.RewardsStatus
+            local weight = state == "found" and 10000
+                or state == "profits" and 1000
+                or state == "empty" and 100 or 0
+            return weight + #value.Rewards
+        end
+        if rank(report) >= rank(lastReport) then
+            lastReport = report
+        elseif lastReport and not lastReport.Difficulty and report.Difficulty then
+            lastReport.Difficulty = report.Difficulty
+        end
+    end
+
     local function finishCapture(report)
         if reportedThisOpening or not report then return end
         reportedThisOpening = true
@@ -635,12 +652,13 @@ return function(ctx)
                             if openedAt == 0 then openedAt = os.clock() end
                             local found = readResult(screen)
                             if found then
-                                lastReport, lastSignature = found, found.Signature
+                                storeBestReport(found)
+                                lastSignature = found.Signature
                                 lastChangeAt = os.clock()
                             end
                         else
                             local final = readResult(screen)
-                            if final then lastReport = final end
+                            if final then storeBestReport(final) end
                             closeCapture()
                         end
                     end
@@ -661,7 +679,7 @@ return function(ctx)
             if found.Signature ~= lastSignature then
                 lastSignature, lastChangeAt = found.Signature, now
             end
-            lastReport = found
+            storeBestReport(found)
         end
 
         if lastReport then
