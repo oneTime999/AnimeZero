@@ -141,17 +141,10 @@ return function(ctx)
     Settings:AddSection("Auto Replay")
 
     Settings:AddToggle("Stable_AutoReplay", {
-        Title = "Story Auto Replay",
-        Description = "Retry story runs automatically",
+        Title = "Auto Replay",
+        Description = "Automatically replay Story and Raids",
         Default = true,
         Callback = function(value) C.AutoReplay = value end
-    })
-
-    Settings:AddToggle("HxH_RaidAutoReplay", {
-        Title = "Raid Auto Replay",
-        Description = "Restart the raid after defeating the boss",
-        Default = true,
-        Callback = function(value) Raid.AutoReplay = value end
     })
 
     Settings:AddSection("Movement")
@@ -210,28 +203,6 @@ return function(ctx)
         Default = 0.2, Rounding = 2,
         Callback = function(value) C.M1Interval = value end
     })
-    Settings:AddSection("Wave Detection")
-
-    Settings:AddSlider("V11_Radius", {
-        Title = "Wave Radius (studs)", Min = 30, Max = 200,
-        Default = 110, Rounding = 0,
-        Callback = function(value) C.WaveRadius = value end
-    })
-    Settings:AddSlider("V11_SpawnConfirm", {
-        Title = "Wave Clear Delay", Min = 1, Max = 5,
-        Default = 1, Rounding = 1,
-        Callback = function(value) C.ConfirmClear = value end
-    })
-    Settings:AddSlider("Stable_SpawnSkip_MaxWait", {
-        Title = "Max Spawn Wait", Min = 1, Max = 15,
-        Default = 2, Rounding = 0,
-        Callback = function(value) C.MaxSpawnWait = value end
-    })
-    Settings:AddSlider("V11_StaleTarget", {
-        Title = "Unresponsive Enemy Timeout", Min = 5, Max = 40,
-        Default = 10, Rounding = 0,
-        Callback = function(value) C.StaleTargetWait = value end
-    })
     Settings:AddSection("Advanced Movement")
 
     Settings:AddSlider("V11_TweenArc", {
@@ -257,19 +228,6 @@ return function(ctx)
             C.LockOnRubble = value
             if not value and S.Phase == "BREAK_RUBBLE" then F.releaseHold() end
         end
-    })
-    Settings:AddSection("Rubble Safety")
-
-    Settings:AddToggle("V11_RubbleTimeoutEnabled", {
-        Title = "Advance on Rubble Timeout",
-        Description = "Optional fallback; disabled to prevent skipped areas",
-        Default = false,
-        Callback = function(value) C.AdvanceOnRubbleTimeout = value end
-    })
-    Settings:AddSlider("V11_RubbleTimeout", {
-        Title = "Rubble Timeout", Min = 10, Max = 90,
-        Default = 25, Rounding = 0,
-        Callback = function(value) C.RubbleTimeout = value end
     })
     Settings:AddToggle("V11_AntiAFK", {
         Title = "Anti AFK", Default = true,
