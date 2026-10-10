@@ -7,7 +7,7 @@ return function(ctx)
         FarmTotals = true,
         Fields = {
             Result = true, Duration = true, Kills = true, Damage = true,
-            EXP = true, GemsEarned = true, MVP = true, Rewards = true,
+            EXP = true, GemsEarned = true, Rewards = true,
             Coins = true, Dice = true, LuckyDice = true,
             Gems = true, EnchantGems = true, Items = true
         }
@@ -48,7 +48,6 @@ return function(ctx)
     addFieldOption("HxH_WebhookDamage", "Damage Dealt", "Damage")
     addFieldOption("HxH_WebhookEXP", "EXP Earned", "EXP")
     addFieldOption("HxH_WebhookGemsEarned", "Gems Earned (Stats)", "GemsEarned")
-    addFieldOption("HxH_WebhookMVP", "MVP", "MVP")
     addFieldOption("HxH_WebhookRewards", "Include Rewards Section", "Rewards")
 
     Webhooks:AddSection("Reward Types")
@@ -234,7 +233,6 @@ return function(ctx)
 
         local stats = getStats(holder)
         local rewards = getRewards(holder)
-        local mvp = clean(getText(center, "MVPResult"))
         local rewardSignature = {}
         for _, reward in ipairs(rewards) do
             table.insert(rewardSignature, reward.Name .. ":"
@@ -243,11 +241,11 @@ return function(ctx)
         local signature = table.concat({
             result, stats["Play Time"] or "", stats["Damage Dealt"] or "",
             stats["Enemies Killed"] or "", stats["EXP Earned"] or "",
-            stats["Gems Earned"] or "", mvp, table.concat(rewardSignature, "|")
+            stats["Gems Earned"] or "", table.concat(rewardSignature, "|")
         }, "\n")
         return {
             Win = win, Stats = stats, Rewards = rewards,
-            MVP = mvp, Signature = signature
+            Signature = signature
         }
     end
 
@@ -297,7 +295,7 @@ return function(ctx)
         end
 
         local body = HttpService:JSONEncode({
-            username = "AnimeZero",
+            username = "Slow Hub",
             allowed_mentions = {parse = {}},
             embeds = {embed}
         })
@@ -378,7 +376,6 @@ return function(ctx)
             earnedGems = earnedGems .. " (" .. formatNumber(Session.GemsEarned) .. " total)"
         end
         addField(options.GemsEarned, "Gems Earned", earnedGems)
-        addField(options.MVP and report.MVP ~= "", "MVP", report.MVP)
 
         if options.Rewards then
             local lines = rewardLines(report, isTest)
@@ -400,14 +397,14 @@ return function(ctx)
         end
 
         local payload = {
-            title = isTest and "AnimeZero - Test Notification"
-                or "AnimeZero - Match Results",
+            title = isTest and "Slow Hub - Test Notification"
+                or "Anime Zero - Match Results",
             color = isTest and 3447003
                 or (options.Result and (report.Win and 5763719 or 15548997) or 9807270),
             description = isTest and "Preview only - example values, not real rewards." or nil,
             fields = fields,
-            footer = {text = isTest and "Webhook connection test"
-                or "EndScreen - Match completed"}
+            footer = {text = isTest and "Slow Hub • Test Notification"
+                or "Slow Hub • Anime Zero"}
         }
         if #fields == 0 then
             payload.description = (payload.description or "")
@@ -434,7 +431,6 @@ return function(ctx)
                 ["EXP Earned"] = "3900",
                 ["Gems Earned"] = "200"
             },
-            MVP = "Example Player",
             Rewards = examples
         }
     end
@@ -500,7 +496,7 @@ return function(ctx)
             task.spawn(function()
                 local success, message = send(report, false)
                 if success ~= true then
-                    warn("[AnimeZero] Match webhook: " .. tostring(message))
+                    warn("[Slow Hub] Match webhook: " .. tostring(message))
                     if success == false then
                         Fluent:Notify({
                             Title = "Match Webhook",
@@ -597,7 +593,7 @@ return function(ctx)
         while S.Alive and not Fluent.Unloaded do
             local ok, err = pcall(observe)
             if not ok then
-                warn("[AnimeZero] EndScreen capture error: " .. tostring(err))
+                warn("[Slow Hub] EndScreen capture error: " .. tostring(err))
             end
             task.wait(0.08)
         end
