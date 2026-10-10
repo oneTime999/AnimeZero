@@ -307,7 +307,7 @@ return function(ctx)
                 or "Anime Zero - Match Results",
             color = isTest and 3447003
                 or (options.Result and (report.Win and 5763719 or 15548997) or 9807270),
-            description = isTest and "Preview only - example values, not real rewards." or nil,
+            description = isTest and "Test message with example match statistics." or nil,
             fields = fields,
             footer = {text = isTest and "Slow Hub • Test Notification"
                 or "Slow Hub • Anime Zero"}
