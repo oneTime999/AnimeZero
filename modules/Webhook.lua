@@ -416,24 +416,50 @@ return function(ctx)
         end
     })
 
-    local watchedScreen, enabledConnection = nil, nil
-    local openedAt, lastChangeAt = 0, 0
-    local lastReport, lastSignature = nil, nil
-    local reportedThisOpening = false
-    local lastRecordedSignature, lastRecordedAt = nil, -math.huge
+    Webhooks:AddButton({
+        Title = "Check Reward Source",
+        Description = "Check if the game's runStore is accessible",
+        Callback = function()
+            local ok, report, phase, _, detail =
+                pcall(ctx.ReadMatchStore)
+            local message
+            if not ok then
+                message = "Error while checking runStore"
+            elseif phase == "active" then
+                message = "Connected: match in progress"
+            elseif phase == "finished" then
+                message = "Connected: "
+                    .. tostring(#(report.Rewards or {}))
+                    .. " reward types available"
+            else
+                message = detail or "Match data not ready"
+            end
+            Fluent:Notify({
+                Title = "Reward Source",
+                Content = message,
+                Duration = 7
+            })
+        end
+    })
+
+    local lastRecordedAt = -math.huge
+    local terminalIdentity = nil
+    local terminalSince = 0
+    local terminalProcessed = false
+    local sourcePhase = "unavailable"
+    local guiOpenedAt = 0
+    local guiAlreadyReported = false
+    local lastGUIReport = nil
+    local lastWarnAt = -math.huge
 
     local function finishCapture(report)
-        if reportedThisOpening or not report then return end
-        reportedThisOpening = true
-
+        if not report then return end
         local now = os.clock()
-        -- Avoid counting a brief hide/show animation as a second round.
-        if report.Signature == lastRecordedSignature
-            and now - lastRecordedAt < 4 then return end
+        -- Prevent a GUI fallback and runStore snapshot from counting twice.
+        if now - lastRecordedAt < 4 then return end
 
+        lastRecordedAt = now
         recordSession(report)
-        lastRecordedSignature, lastRecordedAt = report.Signature, now
-
         if Config.Enabled and Config.Url ~= "" then
             task.spawn(function()
                 local success, message = send(report, false)
@@ -452,93 +478,88 @@ return function(ctx)
         end
     end
 
-    local function closeCapture()
-        if openedAt > 0 and not reportedThisOpening then
-            -- Keep the latest captured values even if replay closes the UI
-            -- before the next polling interval.
-            finishCapture(lastReport)
-        end
-        openedAt, lastChangeAt = 0, 0
-        lastReport, lastSignature = nil, nil
-        reportedThisOpening = false
-    end
-
     local function observe()
+        local now = os.clock()
+        local ok, report, phase, identity = pcall(ctx.ReadMatchStore)
+        if not ok then
+            phase, report = "unavailable", nil
+            if now - lastWarnAt > 20 then
+                warn("[Slow Hub] runStore read failed")
+                lastWarnAt = now
+            end
+        end
+        sourcePhase = phase or "unavailable"
+
+        if sourcePhase == "active" then
+            terminalIdentity = nil
+            terminalSince = 0
+            terminalProcessed = false
+        elseif sourcePhase == "finished" and report then
+            if terminalIdentity ~= identity then
+                terminalIdentity = identity
+                terminalSince = now
+                terminalProcessed = false
+            end
+            if not terminalProcessed and now - terminalSince >= 0.35 then
+                terminalProcessed = true
+                finishCapture(report)
+            end
+        end
+
+        -- UI fallback is used only if runStore is inaccessible.
+        -- It does not attempt to invent item rewards.
         local gui = Player:FindFirstChildOfClass("PlayerGui")
         local screen = gui and gui:FindFirstChild("EndScreen")
-
-        if screen ~= watchedScreen then
-            closeCapture()
-            if enabledConnection then enabledConnection:Disconnect() end
-            enabledConnection = nil
-            watchedScreen = screen
-            if screen and screen:IsA("ScreenGui") then
-                enabledConnection = screen:GetPropertyChangedSignal("Enabled"):Connect(function()
-                    -- Capture on property transition, not only on a timer.
-                    if not S.Alive then return end
-                    if watchedScreen == screen then
-                        if screen.Enabled then
-                            if openedAt == 0 then openedAt = os.clock() end
-                            local found = readResult(screen)
-                            if found then
-                                lastReport = found
-                                lastSignature = found.Signature
-                                lastChangeAt = os.clock()
-                            end
-                        else
-                            local final = readResult(screen)
-                            if final then lastReport = final end
-                            closeCapture()
-                        end
-                    end
-                end)
+        local isOpen = screen and screen:IsA("ScreenGui") and screen.Enabled
+        if isOpen then
+            if guiOpenedAt == 0 then
+                guiOpenedAt = now
+                guiAlreadyReported = false
+                lastGUIReport = nil
             end
-        end
-
-        if not screen or not screen:IsA("ScreenGui") or not screen.Enabled then
-            if openedAt > 0 then closeCapture() end
-            return
-        end
-
-        local now = os.clock()
-        if openedAt == 0 then openedAt = now end
-        if reportedThisOpening then return end
-        local found = readResult(screen)
-        if found then
-            if found.Signature ~= lastSignature then
-                lastSignature, lastChangeAt = found.Signature, now
+            if sourcePhase == "unavailable" and not guiAlreadyReported then
+                local found = readResult(screen)
+                if found then
+                    found.Source = "GUI"
+                    lastGUIReport = found
+                end
+                if lastGUIReport and now - guiOpenedAt >= 1 then
+                    guiAlreadyReported = true
+                    finishCapture(lastGUIReport)
+                end
             end
-            lastReport = found
-        end
-
-        if lastReport then
-            local stable = now - lastChangeAt
-            local age = now - openedAt
-            local statsReady = lastReport.Stats["Play Time"] ~= nil
-            if (age >= 0.45 and stable >= 0.25 and statsReady)
-                or (age >= 1.2 and stable >= 0.3)
-                or age >= 2 then
-                finishCapture(lastReport)
+        else
+            if guiOpenedAt > 0 and lastGUIReport
+                and not guiAlreadyReported
+                and sourcePhase == "unavailable" then
+                finishCapture(lastGUIReport)
             end
+            guiOpenedAt = 0
+            guiAlreadyReported = false
+            lastGUIReport = nil
         end
     end
 
     ctx.WebhookCaptureNow = observe
     ctx.WebhookPauseReplay = function()
-        observe()
         if not Config.Enabled then return false end
-        return openedAt > 0 and not reportedThisOpening
-            and os.clock() - openedAt < 2
+        local now = os.clock()
+        if sourcePhase == "finished" and not terminalProcessed
+            and now - terminalSince < 1.5 then
+            return true
+        end
+        return guiOpenedAt > 0 and not guiAlreadyReported
+            and now - guiOpenedAt < 1.6
     end
 
     task.spawn(function()
         while S.Alive and not Fluent.Unloaded do
             local ok, err = pcall(observe)
-            if not ok then
-                warn("[Slow Hub] EndScreen capture error: " .. tostring(err))
+            if not ok and os.clock() - lastWarnAt > 20 then
+                lastWarnAt = os.clock()
+                warn("[Slow Hub] Match tracker: " .. tostring(err))
             end
-            task.wait(0.08)
+            task.wait(0.1)
         end
-        if enabledConnection then enabledConnection:Disconnect() end
     end)
 end
