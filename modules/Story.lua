@@ -7,6 +7,72 @@ return function(ctx)
     local F = ctx.Functions
 
 
+    local function resetForNewRound()
+        S.OldModels = setmetatable({}, {__mode = "k"})
+        S.OldDead = setmetatable({}, {__mode = "k"})
+        S.WaveModels = {}
+        S.Ignored = {}
+        S.TargetProgress = setmetatable({}, {__mode = "k"})
+        S.LastM1 = 0
+        S.FinalRestored = false
+        S.CachedDifficulty = nil
+        S.LastDifficultyScan = 0
+        S.HUDSyncCandidate = nil
+        S.HUDSyncGraceUntil = 0
+        S.CompletedEnemySnapshot = nil
+        S.CombatWaitSince = nil
+        for _, skill in ipairs(Skill) do
+            skill.Last = -math.huge
+        end
+        F.toWave(C.FirstBorder, 1)
+        S.Status = "New round detected; restarting Story"
+    end
+
+    local function newRoundSpawned()
+        local folder = F.enemyFolder()
+        local points = WaveCoordinates[C.FirstBorder]
+        local spawn = points and points[1]
+        if not folder or not spawn then return false end
+
+        for _, model in ipairs(folder:GetChildren()) do
+            if model:IsA("Model") and F.living(model)
+                and not (S.CompletedEnemySnapshot and S.CompletedEnemySnapshot[model]) then
+                local part = F.partOf(model)
+                if part and (part.Position - spawn).Magnitude <= C.WaveRadius then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    local function tryStoryAttack(target)
+        local positionOK, positioned = pcall(F.enemyPosition, target)
+        if not positionOK or not positioned then
+            S.StoryPositionFailedAt = S.StoryPositionFailedAt or os.clock()
+            if os.clock() - S.StoryPositionFailedAt > 2 then
+                S.Target = nil
+                S.TargetProgress[target] = nil
+                F.releaseHold()
+                S.StoryPositionFailedAt = nil
+            end
+            S.Status = "Retrying combat position for " .. target.Name
+            return
+        end
+
+        S.StoryPositionFailedAt = nil
+        if F.living(target) then
+            local m1ok, m1err = pcall(F.attackM1)
+            local skillok, skillerr = pcall(F.autoSkills)
+            -- A failing M1 must not prevent the skill routine from running.
+            if not m1ok then
+                S.Status = "M1 error: " .. tostring(m1err)
+            elseif not skillok then
+                S.Status = "Skill error: " .. tostring(skillerr)
+            end
+        end
+    end
+
     function F.setPhase(phase, message)
         if S.Phase ~= phase then
             F.cancelTravel()
@@ -400,10 +466,7 @@ return function(ctx)
                 S.EmptyAt = nil
                 S.Status = string.format("Wave %d: attacking %s",
                     S.BorderNumber, target.Name)
-                if F.enemyPosition(target) and F.living(target) then
-                    F.attackM1()
-                    F.autoSkills()
-                end
+                tryStoryAttack(target)
             elseif F.livingEnemyExists() then
                 S.EmptyAt = nil
                 S.Status = "Active enemies detected; acquiring target"
@@ -548,8 +611,25 @@ return function(ctx)
                 F.setPhase("KILL_BOSS", "Boss found: " .. boss.Name)
                 return
             end
+            local now = os.clock()
+            -- Sometimes the server starts another mob wave instead of
+            -- announcing the boss immediately. Resume clearing those mobs.
+            if now - S.BossWaitAt >= 2 then
+                local folder = F.enemyFolder()
+                if folder then
+                    for _, mob in ipairs(folder:GetChildren()) do
+                        if mob:IsA("Model") and F.living(mob)
+                            and F.bossNearFinal(mob)
+                            and not S.BossSnapshot[mob] then
+                            F.beginWave(true)
+                            S.Status = "Additional enemies spawned; resuming combat"
+                            return
+                        end
+                    end
+                end
+            end
             S.Status = string.format("Waiting for boss (%.1fs)",
-                os.clock() - S.BossWaitAt)
+                now - S.BossWaitAt)
             return
         end
 
@@ -558,10 +638,7 @@ return function(ctx)
             if boss and F.living(boss) then
                 S.BossClearSince = nil
                 S.Status = "Attacking boss: " .. boss.Name
-                if F.enemyPosition(boss) and F.living(boss) then
-                    F.attackM1()
-                    F.autoSkills()
-                end
+                tryStoryAttack(boss)
             else
                 S.BossClearSince = S.BossClearSince or os.clock()
                 S.Status = "Boss defeated; confirming clear"
@@ -578,16 +655,34 @@ return function(ctx)
             F.restoreCollisions()
             S.FinishAt = os.clock()
             S.FinalRestored = true
+            S.CompletedEnemySnapshot = setmetatable({}, {__mode = "k"})
+            local finishedFolder = F.enemyFolder()
+            if finishedFolder then
+                for _, mob in ipairs(finishedFolder:GetChildren()) do
+                    S.CompletedEnemySnapshot[mob] = true
+                end
+            end
             F.setPhase("COMPLETED", "Boss cleared; waiting for the next round")
             return
         end
 
         if S.Phase == "COMPLETED" then
-            if os.clock() >= S.FinishAt and not S.FinalRestored then
+            if not S.FinalRestored then
                 F.releaseHold()
                 F.restoreCollisions()
                 S.FinalRestored = true
-                S.Status = "Run completed"
+            end
+
+            local gui = Player:FindFirstChildOfClass("PlayerGui")
+            local endScreen = gui and gui:FindFirstChild("EndScreen")
+            local showingResult = endScreen and endScreen:IsA("ScreenGui")
+                and endScreen.Enabled
+
+            -- Replay can restart inside the same server without resetting
+            -- the HUD. Detect freshly spawned first-wave mobs independently.
+            if os.clock() - S.FinishAt >= 2 and not showingResult
+                and newRoundSpawned() then
+                resetForNewRound()
             end
             return
         end
