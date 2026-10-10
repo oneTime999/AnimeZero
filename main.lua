@@ -4,7 +4,7 @@ end
 
 local Env = (getgenv and getgenv()) or _G
 local Root = Env.PcdFnlBossModulesURL
-    or "https://raw.githubusercontent.com/oneTime999/PcdFnlBossUI/refs/heads/main/hub/"
+    or "https://raw.githubusercontent.com/oneTime999/AnimeZero/refs/heads/main/"
 Root = Root:gsub("/+$", "") .. "/"
 
 local function loadModule(name)
