@@ -65,20 +65,35 @@ return function(ctx)
         return used
     end
 
+    local nextSkillIndex = 1
+    local dispatching = false
+
     function F.autoSkills()
-        if not C.Skills or not (S.Enabled or Raid.Enabled or Zzzz.Enabled) then return end
+        if not C.Skills or not (S.Enabled or Raid.Enabled or Zzzz.Enabled)
+            or dispatching then return end
+
         local now = os.clock()
-        for _, skill in ipairs(Skill) do
-            if skill.Enabled and not skill.Busy and now - skill.Last >= skill.Delay then
+        for offset = 0, #Skill - 1 do
+            local index = (nextSkillIndex + offset - 1) % #Skill + 1
+            local skill = Skill[index]
+            if skill.Enabled and not skill.Busy
+                and now - skill.Last >= skill.Delay then
+                nextSkillIndex = index % #Skill + 1
                 skill.Busy = true
-                skill.Last = now
+                dispatching = true
+
+                -- Queue inputs one at a time so simultaneous key presses
+                -- cannot cancel or overlap one another during a long farm.
                 task.spawn(function()
                     local ok, err = pcall(F.invokeSkill, skill)
                     if not ok then
                         S.SkillStatus = skill.Name .. ": " .. tostring(err)
                     end
+                    skill.Last = os.clock()
                     skill.Busy = false
+                    dispatching = false
                 end)
+                return
             end
         end
     end
