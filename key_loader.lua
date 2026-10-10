@@ -2,7 +2,7 @@
 -- Users enter their key in the UI. No script_key is needed at startup.
 local CONFIG = {
     ScriptId = "4148cbb709649588d331629184124c57",
-    GetKeyUrl = "https://link-center.net/1247234/hMKSg5XrHazr"
+    GetKeyUrl = "https://link-center.net/1375550/t4EuIc7CPrXi"
 }
 
 if not game:IsLoaded() then game.Loaded:Wait() end
