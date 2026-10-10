@@ -50,7 +50,8 @@ local C = {
     RubbleClearConfirm = 0.6,
     RubbleTimeout = 25,
     AdvanceOnRubbleTimeout = false,
-    AutoReplay = true
+    AutoReplay = true,
+    AutoCollectDrops = false
 }
 
 local S = {
