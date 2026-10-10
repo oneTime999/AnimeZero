@@ -24,7 +24,7 @@ return function(ctx)
         Description = "Stored in your local profile only",
         Default = "",
         Placeholder = "https://discord.com/api/webhooks/...",
-        Finished = true,
+        Finished = false,
         Callback = function(value)
             Config.Url = type(value) == "string"
                 and (value:match("^%s*(.-)%s*$") or "") or ""
