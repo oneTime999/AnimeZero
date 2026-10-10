@@ -23,12 +23,12 @@ return function(ctx)
         SaveManager:BuildConfigSection(Profiles)
         Profiles:AddParagraph({
             Title = "Automatic Saving",
-            Content = "Automation settings are saved after each change."
+            Content = "Settings are saved automatically."
         })
     else
         Profiles:AddParagraph({
             Title = "Saving Unavailable",
-            Content = "Your executor needs working file system functions to save settings."
+            Content = "Saving is unavailable on this device."
         })
     end
 
