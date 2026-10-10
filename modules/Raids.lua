@@ -67,7 +67,7 @@ return function(ctx)
         local folder = F.enemyFolder()
         if not folder then
             Raid.Target = nil
-            F.releaseHold()
+            F.holdCombatPosition()
             Raid.Status = "Waiting for raid enemies"
             return
         end
@@ -144,7 +144,7 @@ return function(ctx)
 
         Raid.Target = target
         if not target then
-            F.releaseHold()
+            F.holdCombatPosition()
             return
         end
 
