@@ -667,11 +667,13 @@ return function(ctx)
         if lastReport then
             local stable = now - lastChangeAt
             local age = now - openedAt
-            -- Report soon enough for auto replay, but allow a brief period
-            -- for delayed reward slots to populate.
-            if (age >= 0.4 and stable >= 0.2 and #lastReport.Rewards > 0)
-                or (age >= 0.85 and stable >= 0.2)
-                or age >= 1.4 then
+            -- Wait for reward slots to finish populating. The first
+            -- EndScreen frame often has stats but no drops yet.
+            local state = lastReport.RewardsStatus
+            if (state == "found" and age >= 0.65 and stable >= 0.65)
+                or (state == "empty" and age >= 1.15 and stable >= 0.45)
+                or (age >= 2.8 and stable >= 0.4)
+                or age >= 3.5 then
                 finishCapture(lastReport)
             end
         end
@@ -682,7 +684,7 @@ return function(ctx)
         observe()
         if not Config.Enabled then return false end
         return openedAt > 0 and not reportedThisOpening
-            and os.clock() - openedAt < 1.5
+            and os.clock() - openedAt < 3.5
     end
 
     task.spawn(function()
