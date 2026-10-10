@@ -480,42 +480,129 @@ return function(ctx)
         end
     })
 
-    task.spawn(function()
-        local lastScreen, openedAt = nil, 0
-        local lastSignature, stableAt = nil, 0
-        local alreadySent = false
+    local watchedScreen, enabledConnection = nil, nil
+    local openedAt, lastChangeAt = 0, 0
+    local lastReport, lastSignature = nil, nil
+    local reportedThisOpening = false
+    local lastRecordedSignature, lastRecordedAt = nil, -math.huge
 
-        while S.Alive and not ctx.Fluent.Unloaded do
-            local gui = Player:FindFirstChildOfClass("PlayerGui")
-            local screen = gui and gui:FindFirstChild("EndScreen")
-            if lastScreen ~= screen then
-                lastScreen, openedAt = screen, 0
-                lastSignature, stableAt = nil, 0
-                alreadySent = false
-            end
+    local function finishCapture(report)
+        if reportedThisOpening or not report then return end
+        reportedThisOpening = true
 
-            if not screen or not screen:IsA("ScreenGui") or not screen.Enabled then
-                openedAt, stableAt = 0, 0
-                lastSignature = nil
-                alreadySent = false
-            else
-                local now = os.clock()
-                if openedAt == 0 then openedAt = now end
+        local now = os.clock()
+        -- Avoid counting a brief hide/show animation as a second round.
+        if report.Signature == lastRecordedSignature
+            and now - lastRecordedAt < 4 then return end
 
-                if Config.Enabled and Config.Url ~= "" and not alreadySent
-                    and now - openedAt >= 1.5 then
-                    local report = readResult(screen)
-                    if report then
-                        if lastSignature ~= report.Signature then
-                            lastSignature, stableAt = report.Signature, now
-                        elseif now - stableAt >= 1 then
-                            alreadySent = true
-                            task.spawn(send, report)
-                        end
+        recordSession(report)
+        lastRecordedSignature, lastRecordedAt = report.Signature, now
+
+        if Config.Enabled and Config.Url ~= "" then
+            task.spawn(function()
+                local success, message = send(report, false)
+                if success ~= true then
+                    warn("[AnimeZero] Match webhook: " .. tostring(message))
+                    if success == false then
+                        Fluent:Notify({
+                            Title = "Match Webhook",
+                            Content = "Could not send match results",
+                            SubContent = message,
+                            Duration = 6
+                        })
                     end
                 end
-            end
-            task.wait(0.3)
+            end)
         end
+    end
+
+    local function closeCapture()
+        if openedAt > 0 and not reportedThisOpening then
+            -- Keep the latest captured values even if replay closes the UI
+            -- before the next polling interval.
+            finishCapture(lastReport)
+        end
+        openedAt, lastChangeAt = 0, 0
+        lastReport, lastSignature = nil, nil
+        reportedThisOpening = false
+    end
+
+    local function observe()
+        local gui = Player:FindFirstChildOfClass("PlayerGui")
+        local screen = gui and gui:FindFirstChild("EndScreen")
+
+        if screen ~= watchedScreen then
+            closeCapture()
+            if enabledConnection then enabledConnection:Disconnect() end
+            enabledConnection = nil
+            watchedScreen = screen
+            if screen and screen:IsA("ScreenGui") then
+                enabledConnection = screen:GetPropertyChangedSignal("Enabled"):Connect(function()
+                    -- Capture on property transition, not only on a timer.
+                    if not S.Alive then return end
+                    if watchedScreen == screen then
+                        if screen.Enabled then
+                            if openedAt == 0 then openedAt = os.clock() end
+                            local found = readResult(screen)
+                            if found then
+                                lastReport, lastSignature = found, found.Signature
+                                lastChangeAt = os.clock()
+                            end
+                        else
+                            local final = readResult(screen)
+                            if final then lastReport = final end
+                            closeCapture()
+                        end
+                    end
+                end)
+            end
+        end
+
+        if not screen or not screen:IsA("ScreenGui") or not screen.Enabled then
+            if openedAt > 0 then closeCapture() end
+            return
+        end
+
+        local now = os.clock()
+        if openedAt == 0 then openedAt = now end
+        if reportedThisOpening then return end
+        local found = readResult(screen)
+        if found then
+            if found.Signature ~= lastSignature then
+                lastSignature, lastChangeAt = found.Signature, now
+            end
+            lastReport = found
+        end
+
+        if lastReport then
+            local stable = now - lastChangeAt
+            local age = now - openedAt
+            -- Report soon enough for auto replay, but allow a brief period
+            -- for delayed reward slots to populate.
+            if (age >= 0.4 and stable >= 0.2 and #lastReport.Rewards > 0)
+                or (age >= 0.85 and stable >= 0.2)
+                or age >= 1.4 then
+                finishCapture(lastReport)
+            end
+        end
+    end
+
+    ctx.WebhookCaptureNow = observe
+    ctx.WebhookPauseReplay = function()
+        observe()
+        if not Config.Enabled then return false end
+        return openedAt > 0 and not reportedThisOpening
+            and os.clock() - openedAt < 1.5
+    end
+
+    task.spawn(function()
+        while S.Alive and not Fluent.Unloaded do
+            local ok, err = pcall(observe)
+            if not ok then
+                warn("[AnimeZero] EndScreen capture error: " .. tostring(err))
+            end
+            task.wait(0.08)
+        end
+        if enabledConnection then enabledConnection:Disconnect() end
     end)
 end
