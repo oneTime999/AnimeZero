@@ -408,7 +408,7 @@ return function(ctx)
                 S.EmptyAt = nil
                 S.Status = "Active enemies detected; acquiring target"
             else
-                F.releaseHold()
+                F.holdCombatPosition()
                 S.EmptyAt = S.EmptyAt or os.clock()
                 local remaining = math.max(0, C.ConfirmClear - (os.clock() - S.EmptyAt))
                 S.Status = string.format("Wave cleared in %.1fs | skipped: %d", remaining, S.IgnoredStale)
