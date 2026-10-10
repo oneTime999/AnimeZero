@@ -49,7 +49,7 @@ return function(ctx)
     addFieldOption("HxH_WebhookDamage", "Damage Dealt", "Damage")
     addFieldOption("HxH_WebhookEXP", "EXP Earned", "EXP")
     addFieldOption("HxH_WebhookGemsEarned", "Gems Earned (Stats)", "GemsEarned")
-    Webhooks:AddSection("Rewards - RunStore")
+    Webhooks:AddSection("Rewards")
     addFieldOption("HxH_WebhookRewards", "Show Earned Rewards", "Rewards")
     addFieldOption("HxH_WebhookCoins", "Coins / Gold", "Coins")
     addFieldOption("HxH_WebhookRewardGems", "Gems", "RewardGems")
@@ -416,44 +416,6 @@ return function(ctx)
                     Duration = 6
                 })
             end)
-        end
-    })
-
-    Webhooks:AddButton({
-        Title = "Check Reward Source",
-        Description = "Check if the game's runStore is accessible",
-        Callback = function()
-            local ok, report, phase, _, detail =
-                pcall(ctx.ReadMatchStore)
-            local message
-            if not ok then
-                message = "Error while checking runStore"
-            elseif phase == "active" then
-                message = "Connected: match in progress"
-            elseif phase == "finished" then
-                local materialNames, idsOnly = 0, 0
-                for _, item in ipairs(report.Rewards or {}) do
-                    if item.Category == "Materials" then
-                        if item.Name:match("^Material #") then
-                            idsOnly += 1
-                        else
-                            materialNames += 1
-                        end
-                    end
-                end
-                message = "Connected: "
-                    .. tostring(#(report.Rewards or {}))
-                    .. " reward types; materials named: "
-                    .. tostring(materialNames)
-                    .. ", IDs only: " .. tostring(idsOnly)
-            else
-                message = detail or "Match data not ready"
-            end
-            Fluent:Notify({
-                Title = "Reward Source",
-                Content = message,
-                Duration = 7
-            })
         end
     })
 
