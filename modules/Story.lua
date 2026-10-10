@@ -493,7 +493,13 @@ return function(ctx)
                             F.waitForSecondWave()
                         elseif os.clock() - S.EmptyAt >= C.MaxSpawnWait then
                             if S.FinalMode then
-                                S.Status = "Waiting for the final wave to advance"
+                                -- Never wait forever for a HUD wave change:
+                                -- the UI can lag or fail to update on replay.
+                                if os.clock() - S.EmptyAt >= math.max(5, C.MaxSpawnWait + 2) then
+                                    F.waitForSecondWave()
+                                else
+                                    S.Status = "Waiting briefly for the final wave"
+                                end
                             else
                                 F.beginRubble()
                             end
