@@ -277,13 +277,70 @@ return function(ctx)
                             end
                         end
                     elseif S.Phase == "WAIT_BOSS" and canRecover
-                        and now - phaseSince >= 35
-                        and F.livingEnemyExists() then
-                        pcall(F.recoverStory, "waiting for boss too long", false)
-                        lastPhase = nil
-                        warn("[Slow Hub] Story boss wait recovered")
+                        and now - phaseSince >= (F.livingEnemyExists() and 35 or 65) then
+                        local ok, recovered = pcall(F.recoverStory,
+                            "waiting for boss too long", false)
+                        if ok and recovered then
+                            lastPhase = nil
+                            warn("[Slow Hub] Story boss wait recovered")
+                        end
+                    elseif canRecover
+                        and ((S.Phase == "GO_WAVE" or S.Phase == "GO_SECOND_WAVE")
+                            and now - phaseSince >= 30
+                            or S.Phase == "WAIT_AREA_CHANGE"
+                            and now - phaseSince >= 45
+                            or S.Phase == "BREAK_RUBBLE"
+                            and now - phaseSince >= 40
+                            and (not S.RubbleRef
+                                or not F.rubblePart(S.RubbleRef))) then
+                        local reason = "stalled in " .. tostring(S.Phase)
+                        local ok, recovered = pcall(F.recoverStory, reason, false)
+                        if ok and recovered then
+                            lastPhase = nil
+                            warn("[Slow Hub] Story recovered: " .. reason)
+                        end
                     end
                 end
+            end
+        end
+    end)
+
+    -- Raid watchdog: an enabled farm can remain on a living but
+    -- unresponsive target forever without this progress check.
+    task.spawn(function()
+        local tracked, lastHealth, lastProgress = nil, nil, os.clock()
+        local lastRepair = -math.huge
+        while S.Alive and not Fluent.Unloaded do
+            task.wait(0.8)
+            local now = os.clock()
+            if Raid.Enabled and not Raid.RoundFinished and F.character() then
+                local target = Raid.Target
+                if target and F.living(target)
+                    and not (target.Name == "0" and Raid.BossImmune) then
+                    local hp = F.hpOf(target)
+                    if target ~= tracked then
+                        tracked, lastHealth, lastProgress = target, hp, now
+                    else
+                        if hp and lastHealth and hp < lastHealth - 0.01 then
+                            lastProgress = now
+                        end
+                        lastHealth = hp
+                    end
+                    if now - lastProgress >= 22 and now - lastRepair >= 12 then
+                        lastRepair = now
+                        tracked, lastHealth, lastProgress = nil, nil, now
+                        Raid.Target = nil
+                        F.releaseHold()
+                        if F.resetSkillQueue then F.resetSkillQueue() end
+                        S.LastM1 = 0
+                        Raid.Status = "Retrying stalled raid combat"
+                        warn("[Slow Hub] Raid combat stalled; retrying target")
+                    end
+                else
+                    tracked, lastHealth, lastProgress = nil, nil, now
+                end
+            else
+                tracked, lastHealth, lastProgress = nil, nil, now
             end
         end
     end)
