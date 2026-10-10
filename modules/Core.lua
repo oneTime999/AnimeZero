@@ -121,7 +121,6 @@ local S = {
 
 local Raid = {
     Enabled = false,
-    AutoReplay = true,
     Status = "Disabled",
     Target = nil,
     BossImmune = true,
