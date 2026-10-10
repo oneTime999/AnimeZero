@@ -1,6 +1,7 @@
 return function(ctx)
     local F = ctx.Functions
     local Zzzz = ctx.ZzzzWorld
+    local S = ctx.S
 
     function F.zzzzStep()
         if not Zzzz.Enabled then return end
@@ -15,7 +16,9 @@ return function(ctx)
         local enemies = F.enemyFolder()
         if not enemies then
             Zzzz.Target = nil
-            F.releaseHold()
+            if not S.HoldCF and not S.Travel then
+                S.HoldCF = root.CFrame
+            end
             return
         end
 
@@ -42,7 +45,10 @@ return function(ctx)
 
         Zzzz.Target = target
         if not target then
-            F.releaseHold()
+            -- Keep the last combat position while waiting for the next wave.
+            if not S.HoldCF and not S.Travel then
+                S.HoldCF = root.CFrame
+            end
             return
         end
 
