@@ -1,18 +1,27 @@
 return function(ctx)
-    local S, Player, Settings = ctx.S, ctx.Player, ctx.Settings
+    local S, Player, Webhooks, Fluent = ctx.S, ctx.Player, ctx.Webhooks, ctx.Fluent
     local HttpService = game:GetService("HttpService")
-    local Config = {Enabled = false, Url = ""}
+    local Config = {
+        Enabled = false,
+        Url = "",
+        Fields = {
+            Result = true, Duration = true, Kills = true, Damage = true,
+            EXP = true, GemsEarned = true, MVP = true, Rewards = true,
+            Coins = true, Dice = true, LuckyDice = true,
+            Gems = true, EnchantGems = true, Items = true
+        }
+    }
 
-    Settings:AddSection("Match Webhook")
-    Settings:AddToggle("HxH_WebhookEnabled", {
-        Title = "Match Webhook",
-        Description = "Send match results and rewards after EndScreen opens",
+    Webhooks:AddSection("Connection")
+    Webhooks:AddToggle("HxH_WebhookEnabled", {
+        Title = "Match Notifications",
+        Description = "Automatically send one report when the result screen appears",
         Default = false,
         Callback = function(value) Config.Enabled = value end
     })
-    Settings:AddInput("HxH_WebhookURL", {
+    Webhooks:AddInput("HxH_WebhookURL", {
         Title = "Discord Webhook URL",
-        Description = "Saved in your local profile, never in the GitHub code",
+        Description = "Stored in your local profile only",
         Default = "",
         Placeholder = "https://discord.com/api/webhooks/...",
         Finished = true,
@@ -21,6 +30,33 @@ return function(ctx)
                 and (value:match("^%s*(.-)%s*$") or "") or ""
         end
     })
+
+    local function addFieldOption(id, title, key, description)
+        Webhooks:AddToggle(id, {
+            Title = title,
+            Description = description,
+            Default = true,
+            Callback = function(value) Config.Fields[key] = value end
+        })
+    end
+
+    Webhooks:AddSection("Match Information")
+    addFieldOption("HxH_WebhookResult", "Victory / Defeat", "Result")
+    addFieldOption("HxH_WebhookDuration", "Match Duration", "Duration")
+    addFieldOption("HxH_WebhookKills", "Enemies Killed", "Kills")
+    addFieldOption("HxH_WebhookDamage", "Damage Dealt", "Damage")
+    addFieldOption("HxH_WebhookEXP", "EXP Earned", "EXP")
+    addFieldOption("HxH_WebhookGemsEarned", "Gems Earned (Stats)", "GemsEarned")
+    addFieldOption("HxH_WebhookMVP", "MVP", "MVP")
+    addFieldOption("HxH_WebhookRewards", "Include Rewards Section", "Rewards")
+
+    Webhooks:AddSection("Reward Types")
+    addFieldOption("HxH_WebhookCoins", "Coins", "Coins")
+    addFieldOption("HxH_WebhookDice", "Dice", "Dice")
+    addFieldOption("HxH_WebhookLuckyDice", "Lucky Dice", "LuckyDice")
+    addFieldOption("HxH_WebhookGems", "Gems (Rewards)", "Gems")
+    addFieldOption("HxH_WebhookEnchantGems", "Enchant Gems", "EnchantGems")
+    addFieldOption("HxH_WebhookItems", "Other Item Drops", "Items")
 
     local function getText(parent, name)
         local label = parent and parent:FindFirstChild(name, true)
@@ -65,7 +101,16 @@ return function(ctx)
         if not grid then return result end
 
         for _, slot in ipairs(grid:GetChildren()) do
-            if slot:IsA("GuiObject") and slot.Visible then
+            local category = ({
+                CoinSlot = "Coins",
+                DiceSlot = "Dice",
+                LuckyDiceSlot = "LuckyDice",
+                GemsSlot = "Gems",
+                EnchantGemsSlot = "EnchantGems",
+                Slot = "Items"
+            })[slot.Name]
+            if slot:IsA("GuiObject") and slot.Visible
+                and category and Config.Fields[category] then
                 local main = slot:FindFirstChild("Main")
                 if main and main:IsA("GuiObject") and main.Visible then
                     local name = rewardNames[slot.Name]
@@ -143,65 +188,129 @@ return function(ctx)
         end
     end
 
-    local function send(report)
+    local function postEmbed(embed)
         local url = Config.Url
-        if not (url:match("^https://discord%.com/api/webhooks/%d+/.+")
-            or url:match("^https://discordapp%.com/api/webhooks/%d+/.+")) then
-            warn("[AnimeZero] Invalid Discord webhook URL")
-            return
+        if type(url) ~= "string" or not (url:match("^https://discord%.com/api/webhooks/%d+/[%w_%-]+$")
+            or url:match("^https://discordapp%.com/api/webhooks/%d+/[%w_%-]+$")) then
+            return false, "Please enter a valid Discord webhook URL"
         end
+
         local requestFn = httpRequest()
         if not requestFn then
-            warn("[AnimeZero] HTTP request is unavailable")
-            return
+            return false, "HTTP request function is unavailable"
         end
 
-        local stats = report.Stats
-        local rewards = #report.Rewards > 0
-            and table.concat(report.Rewards, "\n")
-            or "No rewards listed"
-        if #rewards > 1000 then
-            rewards = rewards:sub(1, 995) .. "..."
-        end
-
-        local fields = {
-            {name = "Result", value = report.Win and "Victory" or "Defeat", inline = true},
-            {name = "Duration", value = stats["Play Time"] or "N/A", inline = true},
-            {name = "Enemies Killed", value = stats["Enemies Killed"] or "N/A", inline = true},
-            {name = "Damage Dealt", value = stats["Damage Dealt"] or "N/A", inline = true},
-            {name = "EXP Earned", value = stats["EXP Earned"] or "N/A", inline = true},
-            {name = "Gems Earned", value = stats["Gems Earned"] or "N/A", inline = true},
-            {name = "Rewards", value = rewards, inline = false}
-        }
-        if report.MVP ~= "" then
-            table.insert(fields, 3, {name = "MVP", value = report.MVP, inline = true})
-        end
-
-        local json = HttpService:JSONEncode({
+        local body = HttpService:JSONEncode({
             username = "AnimeZero",
             allowed_mentions = {parse = {}},
-            embeds = {{
-                title = "AnimeZero - Match Results",
-                color = report.Win and 5763719 or 15548997,
-                fields = fields,
-                footer = {text = "EndScreen - Match completed"}
-            }}
+            embeds = {embed}
         })
         local ok, response = pcall(requestFn, {
-            Url = url, Method = "POST",
+            Url = url,
+            Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
-            Body = json
+            Body = body
         })
-        if not ok then
-            warn("[AnimeZero] Could not send match webhook")
-            return
-        end
-        local code = type(response) == "table"
+        if not ok then return false, "HTTP request failed" end
+
+        local status = type(response) == "table"
             and tonumber(response.StatusCode or response.Status or response.status_code)
-        if code and (code < 200 or code >= 300) then
-            warn("[AnimeZero] Discord webhook HTTP " .. tostring(code))
+        if status then
+            if status >= 200 and status < 300 then return true, "HTTP " .. status end
+            return false, "Discord returned HTTP " .. status
         end
+        if type(response) == "table" and response.Success == false then
+            return false, "Request was rejected"
+        end
+        return nil, "Request sent; delivery status unavailable"
     end
+
+    local function send(report, isTest)
+        local stats = report.Stats
+        local options = Config.Fields
+        local fields = {}
+        local function addField(enabled, name, value, inline)
+            if enabled then
+                table.insert(fields, {
+                    name = name,
+                    value = (value and value ~= "") and tostring(value) or "N/A",
+                    inline = inline ~= false
+                })
+            end
+        end
+
+        addField(options.Result, "Result", report.Win and "Victory" or "Defeat")
+        addField(options.Duration, "Duration", stats["Play Time"])
+        addField(options.Kills, "Enemies Killed", stats["Enemies Killed"])
+        addField(options.Damage, "Damage Dealt", stats["Damage Dealt"])
+        addField(options.EXP, "EXP Earned", stats["EXP Earned"])
+        addField(options.GemsEarned, "Gems Earned", stats["Gems Earned"])
+        addField(options.MVP and report.MVP ~= "", "MVP", report.MVP)
+
+        if options.Rewards then
+            local rewards = #report.Rewards > 0
+                and table.concat(report.Rewards, "\n")
+                or "No rewards listed"
+            if #rewards > 1000 then
+                rewards = rewards:sub(1, 995) .. "..."
+            end
+            addField(true, "Rewards", rewards, false)
+        end
+
+        local payload = {
+            title = isTest and "AnimeZero - Test Notification"
+                or "AnimeZero - Match Results",
+            color = isTest and 3447003
+                or (options.Result and (report.Win and 5763719 or 15548997) or 9807270),
+            description = isTest and "Preview only - these are example values, not real drops." or nil,
+            fields = fields,
+            footer = {text = isTest and "Webhook connection test"
+                or "EndScreen - Match completed"}
+        }
+        return postEmbed(payload)
+    end
+
+    local function testReport()
+        local rewards = {}
+        local options = Config.Fields
+        if options.Coins then table.insert(rewards, "Coins ×1000") end
+        if options.Dice then table.insert(rewards, "Dice ×3") end
+        if options.LuckyDice then table.insert(rewards, "Lucky Dice ×1") end
+        if options.Gems then table.insert(rewards, "Gems ×200") end
+        if options.EnchantGems then table.insert(rewards, "Enchant Gems ×5") end
+        if options.Items then table.insert(rewards, "Curse Ball ×2") end
+        return {
+            Win = true,
+            Stats = {
+                ["Play Time"] = "00:05:42",
+                ["Enemies Killed"] = "35",
+                ["Damage Dealt"] = "1.25M",
+                ["EXP Earned"] = "3900",
+                ["Gems Earned"] = "200"
+            },
+            MVP = "Example Player",
+            Rewards = rewards
+        }
+    end
+
+    Webhooks:AddSection("Notifications")
+    Webhooks:AddButton({
+        Title = "Test Webhook Notifications",
+        Description = "Send a sample Discord notification using your selected fields",
+        Callback = function()
+            task.spawn(function()
+                local success, message = send(testReport(), true)
+                Fluent:Notify({
+                    Title = "Webhook Test",
+                    Content = success == true and "Test notification sent"
+                        or success == false and "Test notification failed"
+                        or "Test request submitted",
+                    SubContent = message,
+                    Duration = 6
+                })
+            end)
+        end
+    })
 
     task.spawn(function()
         local lastScreen, openedAt = nil, 0
