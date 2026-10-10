@@ -274,6 +274,15 @@ return function(ctx)
     })
     Settings:AddSection("General")
 
+    Settings:AddToggle("HxH_AutoCollectDrops", {
+        Title = "Auto Collect Drops",
+        Description = "Collect nearby Coins and Health without teleporting",
+        Default = false,
+        Callback = function(enabled)
+            C.AutoCollectDrops = enabled
+        end
+    })
+
     Settings:AddToggle("V11_AntiAFK", {
         Title = "Anti AFK", Default = true,
         Callback = function(value) C.AFK = value end
