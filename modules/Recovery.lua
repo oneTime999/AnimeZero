@@ -16,6 +16,8 @@ return function(ctx)
     local startPosition, emptySince, fallSince = nil, nil, nil
     local lastDamageAt, lastSpawnAt = os.clock(), nil
     local lastHealth = setmetatable({}, {__mode = "k"})
+    local lastSeen = setmetatable({}, {__mode = "k"})
+    local lastNPCCount = 0
     local lastActionAt = -math.huge
     local stage, stallKind = 0, nil
     local warnedAfterFinal = false
@@ -44,9 +46,10 @@ return function(ctx)
         emptySince, fallSince = nil, nil
         lastDamageAt = now
         lastHealth = setmetatable({}, {__mode = "k"})
+        lastSeen = setmetatable({}, {__mode = "k"})
+        lastNPCCount = 0
         stage, stallKind, warnedAfterFinal = 0, nil, false
         Monitor.RecoveryStage = 0
-        Monitor.LastDamageAt = now
     end
 
     local function safePosition(selected, root)
@@ -153,6 +156,7 @@ return function(ctx)
                 or nil
             lastSpawnAt = nil
             Monitor.LastSpawnAt = nil
+            Monitor.LastDamageAt = nil
             resetProgress(now)
             Monitor.Mode = selected or "Off"
         end
@@ -216,7 +220,8 @@ return function(ctx)
             npcs += 1
             local hp = F.hpOf(npc)
             local previous = lastHealth[npc]
-            if previous == nil then spawned = true end
+            if not lastSeen[npc] then spawned = true end
+            lastSeen[npc] = true
             if type(hp) == "number" then
                 hpKnown = true
                 if type(previous) == "number" and hp < previous - 0.01 then
@@ -237,16 +242,27 @@ return function(ctx)
         for npc in pairs(lastHealth) do
             if not seen[npc] then lastHealth[npc] = nil end
         end
+        for npc in pairs(lastSeen) do
+            if not seen[npc] then lastSeen[npc] = nil end
+        end
 
         Monitor.NPCs = npcs
         if spawned then
             lastSpawnAt, Monitor.LastSpawnAt = now, now
         end
-        if tookDamage or spawned then
+        -- Only actual HP loss counts as damage. New NPCs are activity,
+        -- but should not mask a long period of ineffective combat.
+        if tookDamage then
             lastDamageAt, Monitor.LastDamageAt = now, now
+        elseif spawned and lastNPCCount == 0 then
+            -- A genuinely new wave gets its own initial damage window.
+            lastDamageAt = now
+        end
+        if tookDamage or (spawned and lastNPCCount == 0) then
             stage, stallKind, warnedAfterFinal = 0, nil, false
             Monitor.RecoveryStage = 0
         end
+        lastNPCCount = npcs
 
         local waitingForMobs = selected ~= "Story"
             or S.Phase == "WAIT_ENEMIES" or S.Phase == "WAIT_SECOND_WAVE"
