@@ -242,9 +242,18 @@ return function(ctx)
     end
 
     function F.rubbleCFrame(rubble)
-        local dest = RubbleCoordinates[S.BorderNumber]
+        -- Resolve the active barrier directly from World.Map.BorderN.Rubble.
+        local world = WS:FindFirstChild("World")
+        local map = world and world:FindFirstChild("Map")
+        local border = map and map:FindFirstChild("Border" .. tostring(S.BorderNumber))
+        local borderRubble = border and border:FindFirstChild("Rubble")
+        if borderRubble and borderRubble:IsDescendantOf(WS) then
+            rubble = borderRubble
+        end
+
         local main = F.rubblePart(rubble)
-        if not dest and main then dest = main.Position end
+        -- Use the actual barrier's position instead of stale hard-coded rubble coordinates.
+        local dest = main and main.Position or RubbleCoordinates[S.BorderNumber]
         if not dest then return nil end
         if S.Enabled and S.Phase == "BREAK_RUBBLE" and C.Noclip then
             -- Story rubble combat: stay below the barrier so attacks come from underneath.
