@@ -253,15 +253,23 @@ return function(ctx)
         Description = "Automatically clears each wave, tweens to the Lift, and activates its ProximityPrompt to advance.",
         Default = false,
         Callback = function(value)
-            if value and denyActivation("Lift", liftToggle) then return end
             if value then
+                -- Keep the UI preference enabled across places, but only run the farm
+                -- in the confirmed Lift place when its prompt is present.
+                if not Guard.Allowed("Lift") then
+                    Lift.Enabled = false
+                    Lift.Target = nil
+                    Lift.Status = "Saved, waiting for Lift place"
+                    return
+                end
                 local world = WS:FindFirstChild("World")
                 local markers = world and world:FindFirstChild("Markers")
                 local lift = markers and markers:FindFirstChild("Lift")
                 local prompt = lift and lift:FindFirstChildWhichIsA("ProximityPrompt", true)
                 if not prompt then
-                    Fluent:Notify({Title = "Lift unavailable", Content = "Join the endless Lift mode before enabling this farm.", Duration = 6})
-                    task.defer(function() if liftToggle and liftToggle.Value then liftToggle:SetValue(false) end end)
+                    Lift.Enabled = false
+                    Lift.Target = nil
+                    Lift.Status = "Waiting for Lift prompt"
                     return
                 end
                 switchToMode("Lift")
@@ -288,9 +296,13 @@ return function(ctx)
         end
     })
 
-    -- Automatically enable Lift Auto Farm only in its confirmed match place.
+    -- Restore the saved Lift toggle preference; execution remains place-guarded.
     task.spawn(function()
         if game.GameId ~= 10512942223 or game.PlaceId ~= 109151342576374 then
+            if liftToggle and liftToggle.Value then
+                Lift.Enabled = false
+                Lift.Status = "Saved, waiting for Lift place"
+            end
             return
         end
 
