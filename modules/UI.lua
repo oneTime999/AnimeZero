@@ -143,6 +143,17 @@ return function(ctx)
             if value then switchToMode("Story") end
             S.Enabled = value
             if value then
+                -- Send Story start vote only once per server, including toggle reactivation.
+                local serverKey = tostring(game.JobId ~= "" and game.JobId or game.PlaceId)
+                local voteKey = "AnimeZero_StoryStartVote_" .. serverKey
+                if not Env[voteKey] then
+                    Env[voteKey] = true
+                    local startVote = RS:FindFirstChild("startVote")
+                    if startVote and startVote:IsA("RemoteEvent") then
+                        pcall(function() startVote:FireServer(nil) end)
+                    end
+                end
+
                 S.OldModels = setmetatable({}, {__mode = "k"})
                 S.OldDead = setmetatable({}, {__mode = "k"})
                 S.WaveModels = {}
