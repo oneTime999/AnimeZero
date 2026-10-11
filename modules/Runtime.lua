@@ -172,6 +172,9 @@ return function(ctx)
 
     task.spawn(function()
         while S.Alive and not Fluent.Unloaded do
+            if ctx.EnforceFarmLocation then
+                safeStep("Location", ctx.EnforceFarmLocation)
+            end
             if ctx.EnforceFarmExclusivity then
                 safeStep("Mode sync", ctx.EnforceFarmExclusivity)
             end
