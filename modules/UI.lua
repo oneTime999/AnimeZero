@@ -58,7 +58,9 @@ return function(ctx)
         }) do
             if entry.State.Enabled and not Guard.Allowed(entry.Key) then
                 invalidSince[entry.Key] = invalidSince[entry.Key] or os.clock()
-                if os.clock() - invalidSince[entry.Key] >= 3 then
+                -- Permit short round transitions before changing the saved toggle.
+                -- The runtime already blocks all farm actions immediately.
+                if os.clock() - invalidSince[entry.Key] >= 10 then
                     entry.State.Enabled = false
                     if entry.Toggle and entry.Toggle.Value then
                         entry.Toggle:SetValue(false)
