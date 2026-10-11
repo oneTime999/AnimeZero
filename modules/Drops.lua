@@ -34,9 +34,13 @@ return function(ctx)
         local id = validId(rawId)
         if not id or drop == nil then return end
         local previous = records[id]
-        if not previous or previous.drop ~= drop then
+        if not previous then
             records[id] = {drop = drop, seenAt = os.clock()}
             lastAttempt[id] = nil
+        else
+            -- The store may expose new proxy objects on each snapshot.
+            -- Keep the ID's original timestamp and retry interval.
+            previous.drop = drop
         end
     end
 
