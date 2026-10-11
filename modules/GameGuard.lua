@@ -8,7 +8,8 @@ return function(ctx)
     local MODES = {
         Story = {Name = "HxH Story", Value = "hxh"},
         Raids = {Name = "Shadow Monarch", Value = "sololevelingraid"},
-        Zzz = {Name = "Zzz World", Value = "infinite"}
+        Zzz = {Name = "Zzz World", Value = "infinite"},
+        Lift = {Name = "Endless Lift", Value = "lift"}
     }
 
     local function currentMode()
@@ -36,17 +37,29 @@ return function(ctx)
         end
         local value = currentMode()
         for key, info in pairs(MODES) do
-            if info.Value == value then return key end
+            if key ~= "Lift" and info.Value == value then return key end
+        end
+        local world = WS:FindFirstChild("World")
+        local markers = world and world:FindFirstChild("Markers")
+        local lift = markers and markers:FindFirstChild("Lift")
+        if lift and lift:FindFirstChildWhichIsA("ProximityPrompt", true) then
+            return "Lift"
         end
         return nil
     end
 
     function Guard.Allowed(mode)
         local entry = MODES[mode]
-        return entry ~= nil
-            and game.GameId == UNIVERSE_ID
-            and game.PlaceId == MATCH_PLACE_ID
-            and currentMode() == entry.Value
+        if not entry or game.GameId ~= UNIVERSE_ID or game.PlaceId ~= MATCH_PLACE_ID then
+            return false
+        end
+        if mode == "Lift" then
+            local world = WS:FindFirstChild("World")
+            local markers = world and world:FindFirstChild("Markers")
+            local lift = markers and markers:FindFirstChild("Lift")
+            return lift ~= nil and lift:FindFirstChildWhichIsA("ProximityPrompt", true) ~= nil
+        end
+        return currentMode() == entry.Value
     end
 
     function Guard.Reason(mode)
@@ -57,6 +70,15 @@ return function(ctx)
         end
         if game.PlaceId ~= MATCH_PLACE_ID then
             return "Enter the Anime Zero match before enabling this farm"
+        end
+        if mode == "Lift" then
+            local world = WS:FindFirstChild("World")
+            local markers = world and world:FindFirstChild("Markers")
+            local lift = markers and markers:FindFirstChild("Lift")
+            if not lift or not lift:FindFirstChildWhichIsA("ProximityPrompt", true) then
+                return "Enter the Endless Lift mode before enabling this farm"
+            end
+            return "Allowed"
         end
         if currentMode() ~= entry.Value then
             return "Current match is not " .. entry.Name
