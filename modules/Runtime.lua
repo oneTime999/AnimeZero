@@ -6,6 +6,9 @@ return function(ctx)
     local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
     local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
+    local function allowed(mode)
+        return ctx.GameGuard and ctx.GameGuard.Allowed(mode) == true
+    end
 
     local Fluent, AutoSave, SaveManager = ctx.Fluent, ctx.AutoSave or {Available = false}, ctx.SaveManager
     local afkConn = Player.Idled:Connect(function()
@@ -108,7 +111,7 @@ return function(ctx)
 
     local lastTravelErrorAt = -math.huge
     S.holdConn = RunService.Heartbeat:Connect(function()
-        if S.Alive and S.Enabled then
+        if S.Alive and S.Enabled and allowed("Story") then
             local ok, err = pcall(F.updateTravel)
             if not ok then
                 F.cancelTravel()
@@ -118,7 +121,10 @@ return function(ctx)
                 end
             end
         end
-        if not S.Alive or not (S.Enabled or Raid.Enabled or Zzzz.Enabled) or not S.HoldCF or S.Travel then return end
+        if not S.Alive or not S.HoldCF or S.Travel
+            or not ((S.Enabled and allowed("Story"))
+                or (Raid.Enabled and allowed("Raids"))
+                or (Zzzz.Enabled and allowed("Zzz"))) then return end
         local cf = S.HoldCF
         local char, root = F.character()
         if not char or not root then return end
@@ -134,7 +140,10 @@ return function(ctx)
     end)
 
     S.noclipConn = RunService.Stepped:Connect(function()
-        if S.Alive and (S.Enabled or Raid.Enabled or Zzzz.Enabled) and C.Noclip
+        if S.Alive and C.Noclip
+            and ((S.Enabled and allowed("Story"))
+                or (Raid.Enabled and allowed("Raids"))
+                or (Zzzz.Enabled and allowed("Zzz")))
             and (Raid.Enabled or Zzzz.Enabled or S.Phase ~= "COMPLETED" or not S.FinalRestored) then
             pcall(F.applyNoclip)
         end
@@ -178,14 +187,14 @@ return function(ctx)
             if ctx.EnforceFarmExclusivity then
                 safeStep("Mode sync", ctx.EnforceFarmExclusivity)
             end
-            if S.Enabled then
+            if S.Enabled and allowed("Story") then
                 safeStep("HUD sync", F.syncHUDProgress)
                 safeStep("Story", F.step)
             end
-            if Raid.Enabled then
+            if Raid.Enabled and allowed("Raids") then
                 safeStep("Raid", F.raidStep)
             end
-            if Zzzz.Enabled then
+            if Zzzz.Enabled and allowed("Zzz") then
                 safeStep("Zzz", F.zzzzStep)
             end
             task.wait(0.05)
@@ -201,7 +210,7 @@ return function(ctx)
 
         while S.Alive and not Fluent.Unloaded do
             task.wait(0.6)
-            if not S.Alive or not S.Enabled then
+            if not S.Alive or not S.Enabled or not allowed("Story") then
                 trackedEnemy, lastHealth = nil, nil
                 targetMissingSince = nil
                 lastPhase = nil
@@ -322,7 +331,8 @@ return function(ctx)
         while S.Alive and not Fluent.Unloaded do
             task.wait(0.8)
             local now = os.clock()
-            if Raid.Enabled and not Raid.RoundFinished and F.character() then
+            if Raid.Enabled and allowed("Raids") and not Raid.RoundFinished
+                and F.character() then
                 local target = Raid.Target
                 if target and F.living(target)
                     and not (target.Name == "0" and Raid.BossImmune) then
@@ -362,8 +372,8 @@ return function(ctx)
         local sawActiveZzz = false
         while S.Alive and not Fluent.Unloaded do
             task.wait(1)
-            local replayMode = S.Enabled and "Story"
-                or (Zzzz.Enabled and "Zzz" or nil)
+            local replayMode = (S.Enabled and allowed("Story")) and "Story"
+                or ((Zzzz.Enabled and allowed("Zzz")) and "Zzz" or nil)
             if replayMode ~= lastReplayMode then
                 lastReplayMode = replayMode
                 sawActiveZzz = false
