@@ -127,6 +127,22 @@ return function(ctx)
         return "Material #" .. tostring(id)
     end
 
+    -- Lightweight result state used for replay. Unlike the full
+    -- match report, it does not require finished reward/stat fields.
+    ctx.ReadMatchStatus = function()
+        local source = getModule()
+        if not source then return nil, nil end
+        local state = source.store.state
+        local ok, participant = pcall(function()
+            return state.participants:get(tostring(Player.UserId))
+        end)
+        if not ok or not participant then return nil, nil end
+        local status = get(participant.status)
+        if type(status) ~= "string" then return nil, nil end
+        local completedAt = get(participant.finishedAt) or get(state.finishedAt)
+        return status:lower(), completedAt
+    end
+
     ctx.ReadMatchStore = function()
         local source = getModule()
         if not source then return nil, "unavailable", nil, loadError end
