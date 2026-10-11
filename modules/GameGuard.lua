@@ -9,8 +9,8 @@ return function(ctx)
 
     local function modeValue()
         local value = WS:GetAttribute("Mode")
-        if type(value) ~= "string" or value == "" then return "" end
-        return value:lower():match("^%s*(.-)%s*$") or ""
+        if type(value) ~= "string" and type(value) ~= "number" then return "" end
+        return tostring(value):lower():match("^%s*(.-)%s*$") or ""
     end
 
     local function loadRecords()
