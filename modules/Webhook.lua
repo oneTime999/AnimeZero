@@ -542,12 +542,12 @@ return function(ctx)
         end
 
         if sourcePhase == "finished" and report then
-            if terminalIdentity ~= identity then
-                terminalIdentity = identity
+            if terminalIdentity == nil then
+                terminalIdentity = report.RoundKey or identity or true
                 terminalSince = now
-                -- Do not reset terminalProcessed just because one of the
-                -- reward atoms changed after the match ended.
             end
+            -- Once a result is seen, late reward/identity changes must not
+            -- restart the settle timer or generate another notification.
             if not terminalProcessed and now - terminalSince >= 0.35 then
                 terminalProcessed = true
                 finishCapture(report)
