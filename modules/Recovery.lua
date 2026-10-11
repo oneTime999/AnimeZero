@@ -4,6 +4,10 @@ return function(ctx)
     local WaveCoordinates = ctx.WaveCoordinates
     local Fluent = ctx.Fluent
     local Monitor = ctx.FarmMonitor
+    local Guard = ctx.GameGuard
+    local function guardMode(mode)
+        return mode == "Raid" and "Raids" or mode
+    end
 
     local EMPTY_DELAY = 30
     local DAMAGE_DELAY = 120
@@ -94,7 +98,8 @@ return function(ctx)
 
     local function takeAction(selected, level, reason, root)
         local now = os.clock()
-        if not S.Alive or selectedFarm() ~= selected or onResult(selected) then
+        if not S.Alive or selectedFarm() ~= selected or onResult(selected)
+            or not Guard or not Guard.Allowed(guardMode(selected)) then
             return false
         end
         if now - lastActionAt < ACTION_GAP then return false end
@@ -139,6 +144,31 @@ return function(ctx)
         return true
     end
 
+    -- Buttons in the private Developer tab call this controlled action.
+    -- It does not change any farm toggle, and never bypasses Place guards.
+    ctx.DevForceRecovery = function(level)
+        if not Guard or not Guard.IsDeveloper() then
+            return false, "Developer access required"
+        end
+        if type(level) ~= "number" or level % 1 ~= 0
+            or level < 1 or level > 3 then
+            return false, "Invalid recovery stage"
+        end
+        local selected = selectedFarm()
+        if not selected or not Guard.Allowed(guardMode(selected)) then
+            return false, "Start the farm in its correct match first"
+        end
+        local _, root = F.character()
+        if not root then return false, "Character not ready" end
+        if onResult(selected) then
+            return false, "Recovery unavailable on the result screen"
+        end
+        if takeAction(selected, level, "developer test", root) then
+            return true, "Recovery stage " .. tostring(level) .. " triggered"
+        end
+        return false, "Recovery cooldown active or safe position unavailable"
+    end
+
     local function monitorStep()
         local now = os.clock()
         local selected = selectedFarm()
@@ -163,6 +193,10 @@ return function(ctx)
 
         if not selected then
             Monitor.State, Monitor.NPCs = "Idle", 0
+            return
+        end
+        if not Guard or not Guard.Allowed(guardMode(selected)) then
+            Monitor.State, Monitor.NPCs = "Waiting for correct match", 0
             return
         end
         if not root then
