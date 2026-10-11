@@ -9,6 +9,10 @@ local CONFIG = {
 }
 
 if not game:IsLoaded() then game.Loaded:Wait() end
+if game.GameId ~= 10512942223 then
+    warn("[Slow Hub] This loader only works in Anime Zero (universe 10512942223)")
+    return
+end
 
 local Env = (getgenv and getgenv()) or _G
 
