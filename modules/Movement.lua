@@ -252,15 +252,11 @@ return function(ctx)
         end
 
         local main = F.rubblePart(rubble)
-        -- Use the actual barrier's position instead of stale hard-coded rubble coordinates.
-        local dest = main and main.Position or RubbleCoordinates[S.BorderNumber]
+        -- Prefer the explicit per-border coordinates configured in Core.lua.
+        -- Do not subtract Distance here: that sent Story downward after each wave.
+        local dest = RubbleCoordinates[S.BorderNumber] or (main and main.Position)
         if not dest then return nil end
-        if S.Enabled and S.Phase == "BREAK_RUBBLE" and C.Noclip then
-            -- Story rubble combat: stay below the barrier so attacks come from underneath.
-            local _, size = F.rubbleBounds(rubble)
-            local halfY = size and size.Y * 0.5 or 3
-            dest = Vector3.new(dest.X, dest.Y - halfY - C.Distance, dest.Z)
-        elseif C.RubblePosition == "Above" or not C.Noclip then
+        if C.RubblePosition == "Above" or not C.Noclip then
             local cf, size = F.rubbleBounds(rubble)
             local safeY = dest.Y + C.RubbleAboveGap
             if cf then
