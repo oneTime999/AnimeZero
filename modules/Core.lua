@@ -19,7 +19,7 @@ local VIM
 pcall(function() VIM = game:GetService("VirtualInputManager") end)
 
 local C = {
-    Position = "Behind",
+    Position = "Below",
     Distance = 3,
     Height = 0,
     M1Interval = 0.2,
