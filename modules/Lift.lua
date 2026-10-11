@@ -116,12 +116,16 @@ return function(ctx)
             return false
         end
 
-        Lift.Status = "Next Floor requested"
+        Lift.Status = "Next Floor requested; holding Interact position"
         Lift.WaitingForWave = true
         Lift.HadEnemies = false
         Lift.EmptySince = nil
         task.spawn(function()
-            bumpAndSettle()
+            -- Keep the character at the Lift prompt until the next wave is detected.
+            -- Moving away immediately can interrupt the transition and cause wave bugs.
+            if not Lift.PromptHolding then
+                bumpAndSettle()
+            end
             task.wait(0.6)
             Lift.NextFloorBusy = false
         end)
@@ -163,15 +167,12 @@ return function(ctx)
             Lift.PromptAttempts = (Lift.PromptAttempts or 0) + 1
             local activated = activatePrompt(prompt)
             Lift.Status = activated
-                and ("Activating Lift (attempt " .. Lift.PromptAttempts .. ")")
+                and ("Interact activated; holding position (attempt " .. Lift.PromptAttempts .. ")")
                 or "Lift activation unavailable; retrying"
             if activated then
-                task.delay(0.8, function()
-                    if Lift.Enabled then
-                        F.cancelTravel()
-                        F.releaseHold()
-                    end
-                end)
+                Lift.PromptHolding = true
+                Lift.PromptHoldCF = goal
+                F.setPosition(goal, 0.5, true)
             end
             return activated
         else
@@ -209,6 +210,12 @@ return function(ctx)
             Lift.EmptySince = nil
             Lift.WaitingForWave = false
             Lift.NextFloorBusy = false
+            if Lift.PromptHolding then
+                Lift.PromptHolding = false
+                Lift.PromptHoldCF = nil
+                F.cancelTravel()
+                F.releaseHold()
+            end
             Lift.Target = target
 
             if positionBelowTarget(target) and F.living(target) then
