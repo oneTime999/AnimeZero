@@ -444,28 +444,23 @@ return function(ctx)
         end
     })
 
-    Webhooks:AddSection("Notifications")
+    -- Test delivery is a developer tool; ordinary users only receive
+    -- actual match notifications configured above.
     local lastTestAt = -math.huge
-    Webhooks:AddButton({
-        Title = "Test Webhook Notifications",
-        Description = "Sends a test notification",
-        Callback = function()
-            local now = os.clock()
-            if now - lastTestAt < 5 then return end
-            lastTestAt = now
-            task.spawn(function()
-                local success, message = send(testReport(), true)
-                Fluent:Notify({
-                    Title = "Webhook Test",
-                    Content = success == true and "Test notification sent"
-                        or success == false and "Test notification failed"
-                        or "Test request submitted",
-                    SubContent = message,
-                    Duration = 6
-                })
-            end)
+    ctx.DeveloperWebhookTest = function()
+        if not ctx.GameGuard or not ctx.GameGuard.IsDeveloper() then
+            return false, "Developer only"
         end
-    })
+        local now = os.clock()
+        if now - lastTestAt < 5 then
+            return false, "Wait 5 seconds between test notifications"
+        end
+        if not tracker.Active or not S.Alive then
+            return false, "Webhook tracker is not active"
+        end
+        lastTestAt = now
+        return send(testReport(), true)
+    end
 
     local roundCaptured = false
     local lastCaptureSource = nil
