@@ -123,8 +123,8 @@ return function(ctx)
     Story:AddSection("HxH Story")
 
     storyToggle = Story:AddToggle("V11_Enable", {
-        Title = "Auto HxH Story",
-        Description = "Automatically farms Story",
+        Title = "Story Auto Farm",
+        Description = "Automatically clears HxH Story waves and advances through the stage.",
         Default = false,
         Callback = function(value)
             if value and denyActivation("Story", storyToggle) then return end
@@ -167,8 +167,8 @@ return function(ctx)
     Raids:AddSection("Shadow Monarch")
 
     raidToggle = Raids:AddToggle("HxH_ShadowMonarchRaid", {
-        Title = "Auto Shadow Monarch Raid",
-        Description = "Automatically farms Shadow Monarch Raid",
+        Title = "Shadow Monarch Raid",
+        Description = "Automates combat during Shadow Monarch raids.",
         Default = false,
         Callback = function(value)
             if value and denyActivation("Raids", raidToggle) then return end
@@ -205,8 +205,8 @@ return function(ctx)
     ZzzzTab:AddSection("Infinite Waves")
 
     zzzzToggle = ZzzzTab:AddToggle("HxH_ZzzzWorld", {
-        Title = "Auto Zzz World",
-        Description = "Automatically farms Zzz World",
+        Title = "Zzz World Auto Farm",
+        Description = "Automatically handles enemies across Infinite Waves.",
         Default = false,
         Callback = function(value)
             if value and denyActivation("Zzz", zzzzToggle) then return end
@@ -235,30 +235,31 @@ return function(ctx)
         end
     })
 
-    Combat:AddSection("Basic Attacks")
+    Combat:AddSection("Combat Automation")
 
     Combat:AddToggle("V11_M1", {
-        Title = "Auto M1", Default = true,
+        Title = "Auto Basic Attack (M1)",
+        Description = "Repeats basic attacks at the selected interval.", Default = true,
         Callback = function(value) C.M1 = value end
     })
     Combat:AddSlider("V11_M1Delay", {
-        Title = "M1 Interval", Min = 0.1, Max = 1.5,
+        Title = "Attack Interval", Description = "Time between consecutive basic attacks.", Min = 0.1, Max = 1.5,
         Default = 0.2, Rounding = 2,
         Callback = function(value) C.M1Interval = value end
     })
 
-    Combat:AddSection("Automatic Skills")
+    Combat:AddSection("Skill Automation")
 
     Combat:AddToggle("V11_AutoSkills", {
-        Title = "Auto Skills", Description = "Uses skills automatically", Default = true,
+        Title = "Auto Skills", Description = "Automatically activates enabled skills when available.", Default = true,
         Callback = function(value) C.Skills = value end
     })
     Combat:AddToggle("V11_SkillsOnRubble", {
-        Title = "Skills on Rubble", Description = "Uses skills on rubble", Default = false,
+        Title = "Use Skills on Barriers", Description = "Allows skills to be used while breaking stage barriers.", Default = false,
         Callback = function(value) C.SkillsOnBorder = value end
     })
     Combat:AddSlider("Stable_SkillHold", {
-        Title = "Key Press Duration", Description = "Adjusts skill key press duration",
+        Title = "Skill Input Duration", Description = "Controls how long each skill key is held.",
         Min = 0.02, Max = 0.4, Default = 0.06, Rounding = 2,
         Callback = function(value) C.SkillKeyHold = value end
     })
@@ -271,46 +272,37 @@ return function(ctx)
             Callback = function(value) skill.Enabled = value end
         })
         section:AddSlider("V11_SkillDelay" .. index, {
-            Title = "Use Interval (seconds)", Min = 0.1, Max = 10,
+            Title = "Skill Cooldown Interval (s)", Min = 0.1, Max = 10,
             Default = skill.Delay, Rounding = 2,
             Callback = function(value) skill.Delay = value end
         })
     end
 
-    Settings:AddSection("Farm Automation")
+    Settings:AddSection("Automation")
 
     Settings:AddToggle("Stable_AutoReplay", {
         Title = "Auto Replay",
-        Description = "Replays matches automatically",
+        Description = "Automatically starts the next run when the current match ends.",
         Default = true,
         Callback = function(value) C.AutoReplay = value end
     })
 
-    Settings:AddToggle("HxH_AutoCollectDrops", {
-        Title = "Auto Collect Drops",
-        Description = "Collects drops automatically",
-        Default = false,
-        Callback = function(enabled)
-            C.AutoCollectDrops = enabled
-        end
-    })
-
-    Settings:AddSection("Positioning")
+    Settings:AddSection("Combat Positioning")
 
     Settings:AddDropdown("V11_Position", {
-        Title = "Enemy Position",
-        Description = "Changes position around enemies",
+        Title = "Attack Position",
+        Description = "Choose where your character stays relative to the target.",
         Values = {"Behind", "Above", "Inside", "Below", "Front", "Left", "Right"},
         Default = "Behind",
         Callback = function(value) C.Position = value end
     })
     Settings:AddSlider("V11_Distance", {
-        Title = "Enemy Distance", Description = "Adjusts distance from enemies", Min = 1, Max = 12,
+        Title = "Target Distance", Description = "Set the spacing maintained from the target.", Min = 1, Max = 12,
         Default = 3, Rounding = 1,
         Callback = function(value) C.Distance = value end
     })
     Settings:AddToggle("V11_Noclip", {
-        Title = "Noclip", Default = true,
+        Title = "Noclip", Description = "Temporarily passes through obstacles during movement.", Default = true,
         Callback = function(value)
             C.Noclip = value
             if not value then
@@ -323,43 +315,43 @@ return function(ctx)
         end
     })
 
-    Settings:AddSection("Travel")
+    Settings:AddSection("Movement")
 
     Settings:AddDropdown("V11_TravelMethod", {
-        Title = "Travel Method",
-        Description = "Changes movement method",
+        Title = "Movement Method",
+        Description = "Choose smooth tween movement or direct teleport movement.",
         Values = {"Tween", "Teleport"},
         Default = "Tween",
         Callback = function(value) C.TravelMethod = value end
     })
     Settings:AddSlider("V11_TravelSpeed", {
-        Title = "Tween Speed (studs/s)", Min = 60, Max = 300,
+        Title = "Movement Speed (studs/s)", Description = "Speed used by tween-based movement.", Min = 60, Max = 300,
         Default = 170, Rounding = 0,
         Callback = function(value) C.TravelSpeed = value end
     })
-    Settings:AddSection("General")
+    Settings:AddSection("General Options")
 
     Settings:AddToggle("V11_AntiAFK", {
-        Title = "Anti AFK", Default = true,
+        Title = "Anti-AFK", Description = "Helps prevent idle disconnection.", Default = true,
         Callback = function(value) C.AFK = value end
     })
 
-    Settings:AddSection("Farm Monitor")
+    Settings:AddSection("Live Status")
     local matchLine = Settings:AddParagraph({
-        Title = "Current Match",
-        Content = "Automatically detected: " .. Guard.ModeName()
+        Title = "Detected Mode",
+        Content = Guard.ModeName()
     })
     local statusLine = Settings:AddParagraph({
-        Title = "Farm Status", Content = "Waiting for farm activation"
+        Title = "Automation Status", Content = "Ready when a farm is enabled"
     })
     local activityLine = Settings:AddParagraph({
-        Title = "Farm Activity", Content = "NPCs: 0"
+        Title = "Activity", Content = "Enemies detected: 0"
     })
     local recoveryLine = Settings:AddParagraph({
-        Title = "Auto Recovery", Content = "No recovery needed"
+        Title = "Recovery", Content = "No recovery action required"
     })
     local errorLine = Settings:AddParagraph({
-        Title = "Last Error", Content = "None"
+        Title = "Latest Error", Content = "No errors reported"
     })
 
     local function age(at)
@@ -386,11 +378,11 @@ return function(ctx)
             if data then
                 local ok, err = pcall(function()
                     display(matchLine, "match",
-                        "Automatically detected: " .. Guard.ModeName())
+                        Guard.ModeName())
                     display(statusLine, "status",
                         tostring(data.Mode or "Off") .. " - " .. tostring(data.State or "Idle"))
                     display(activityLine, "activity",
-                        "NPCs: " .. tostring(data.NPCs or 0)
+                        "Enemies: " .. tostring(data.NPCs or 0)
                         .. " | Last damage: " .. age(data.LastDamageAt)
                         .. " | Last spawn: " .. age(data.LastSpawnAt))
                     display(recoveryLine, "recovery",
