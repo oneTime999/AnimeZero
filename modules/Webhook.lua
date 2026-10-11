@@ -2,6 +2,7 @@ return function(ctx)
     local S, Player, Webhooks, Fluent = ctx.S, ctx.Player, ctx.Webhooks, ctx.Fluent
     local HttpService = game:GetService("HttpService")
     local Env = (getgenv and getgenv()) or _G
+    local Config -- Forward declaration shared by the delivery guard and UI.
 
     -- Only one live match observer per client. Old observers cannot enqueue
     -- more Discord messages after a hub reload.
@@ -44,7 +45,7 @@ return function(ctx)
         return true
     end
 
-    local Config = {
+    Config = {
         Enabled = false,
         Url = "",
         FarmTotals = true,
