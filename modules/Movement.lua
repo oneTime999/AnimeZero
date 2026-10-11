@@ -246,7 +246,12 @@ return function(ctx)
         local main = F.rubblePart(rubble)
         if not dest and main then dest = main.Position end
         if not dest then return nil end
-        if C.RubblePosition == "Above" or not C.Noclip then
+        if S.Enabled and S.Phase == "BREAK_RUBBLE" and C.Noclip then
+            -- Story rubble combat: stay below the barrier so attacks come from underneath.
+            local _, size = F.rubbleBounds(rubble)
+            local halfY = size and size.Y * 0.5 or 3
+            dest = Vector3.new(dest.X, dest.Y - halfY - C.Distance, dest.Z)
+        elseif C.RubblePosition == "Above" or not C.Noclip then
             local cf, size = F.rubbleBounds(rubble)
             local safeY = dest.Y + C.RubbleAboveGap
             if cf then
