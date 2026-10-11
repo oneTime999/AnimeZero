@@ -1,151 +1,103 @@
 return function(ctx)
-    local HttpService = game:GetService("HttpService")
     local Player, WS = ctx.Player, ctx.WS
 
+    -- Confirmed from Anime Zero's three actual matches.
+    -- All three share one PlaceId and differ by Workspace.Mode.
     local UNIVERSE_ID = 10512942223
-    local FILE = "SlowHub_AnimeZero_Places_v1.json"
-    local NAMES = {Story = "HxH Story", Raids = "Shadow Monarch", Zzz = "Zzz World"}
-    local records = {}
+    local MATCH_PLACE_ID = 109151342576374
+    local MODES = {
+        Story = {Name = "HxH Story", Value = "hxh"},
+        Raids = {Name = "Shadow Monarch", Value = "sololevelingraid"},
+        Zzz = {Name = "Zzz World", Value = "infinite"}
+    }
 
-    local function modeValue()
+    local function currentMode()
         local value = WS:GetAttribute("Mode")
-        if type(value) ~= "string" and type(value) ~= "number" then return "" end
+        if type(value) ~= "string" and type(value) ~= "number" then
+            return ""
+        end
         return tostring(value):lower():match("^%s*(.-)%s*$") or ""
     end
 
-    local function loadRecords()
-        if type(readfile) ~= "function" then return end
-        local ok, raw = pcall(readfile, FILE)
-        if not ok or type(raw) ~= "string" then return end
-        local decoded, data = pcall(HttpService.JSONDecode, HttpService, raw)
-        if not decoded or type(data) ~= "table"
-            or tonumber(data.UniverseId) ~= UNIVERSE_ID
-            or type(data.Modes) ~= "table" then return end
-        for key in pairs(NAMES) do
-            local entry = data.Modes[key]
-            if type(entry) == "table"
-                and type(entry.PlaceId) == "number"
-                and entry.PlaceId > 0
-                and type(entry.ModeAttribute) == "string" then
-                records[key] = {
-                    PlaceId = entry.PlaceId,
-                    ModeAttribute = entry.ModeAttribute
-                }
-            end
-        end
-    end
-    loadRecords()
-
-    local function saveRecords()
-        if type(writefile) ~= "function" then
-            return false, "File storage is unavailable; registration will last only this session"
-        end
-        local ok, err = pcall(writefile, FILE, HttpService:JSONEncode({
-            UniverseId = UNIVERSE_ID, Modes = records
-        }))
-        if not ok then return false, tostring(err) end
-        return true
-    end
-
     local Guard = {}
+
+    function Guard.IsDeveloper()
+        -- This is the Roblox username (Player.Name), NOT DisplayName.
+        -- Client-only feature visibility is not a secure permission boundary.
+        return Player.Name:lower() == "z16qe2"
+    end
+
+    function Guard.Detected()
+        if game.GameId ~= UNIVERSE_ID or game.PlaceId ~= MATCH_PLACE_ID then
+            return nil
+        end
+        local value = currentMode()
+        for key, info in pairs(MODES) do
+            if info.Value == value then return key end
+        end
+        return nil
+    end
+
     function Guard.Allowed(mode)
-        if game.GameId ~= UNIVERSE_ID or not NAMES[mode] then return false end
-        local entry = records[mode]
-        if not entry or entry.PlaceId ~= game.PlaceId then return false end
-        local value = modeValue()
-        return entry.ModeAttribute == value
+        local entry = MODES[mode]
+        return entry ~= nil
+            and game.GameId == UNIVERSE_ID
+            and game.PlaceId == MATCH_PLACE_ID
+            and currentMode() == entry.Value
     end
 
     function Guard.Reason(mode)
+        local entry = MODES[mode]
+        if not entry then return "Unknown farm mode" end
         if game.GameId ~= UNIVERSE_ID then
-            return "This is not the official Anime Zero experience"
+            return "Slow Hub only supports Anime Zero"
         end
-        if not NAMES[mode] then return "Unknown farm mode" end
-        local entry = records[mode]
-        if not entry then
-            return "Register " .. NAMES[mode] .. " in its actual match first"
+        if game.PlaceId ~= MATCH_PLACE_ID then
+            return "Enter the Anime Zero match before enabling this farm"
         end
-        if entry.PlaceId ~= game.PlaceId then
-            return NAMES[mode] .. " is registered to a different Place"
-        end
-        if entry.ModeAttribute ~= modeValue() then
-            return NAMES[mode] .. " is not the current game mode"
+        if currentMode() ~= entry.Value then
+            return "Current match is not " .. entry.Name
         end
         return "Allowed"
     end
 
-    function Guard.Register(mode)
-        if not NAMES[mode] then return false, "Unknown farm" end
-        if game.GameId ~= UNIVERSE_ID then
-            return false, "Only Anime Zero is supported"
-        end
-        local candidate = {
-            PlaceId = game.PlaceId,
-            ModeAttribute = modeValue()
-        }
-        if candidate.PlaceId == 114574503491412
-            and candidate.ModeAttribute == "" then
-            -- Some games reuse the main place in reserved match servers.
-            -- Allow that case only if the server exposes an exact mode.
-            return false, "Main Place has no mode identifier; copy diagnostics first"
-        end
-        for other, entry in pairs(records) do
-            if other ~= mode and entry.PlaceId == candidate.PlaceId then
-                if candidate.ModeAttribute == "" or entry.ModeAttribute == ""
-                    or entry.ModeAttribute == candidate.ModeAttribute then
-                    return false, "Cannot distinguish this Place from "
-                        .. NAMES[other] .. ". Copy diagnostics and send them for verification"
-                end
-            end
-        end
-        records[mode] = candidate
-        local persisted, err = saveRecords()
-        if not persisted then
-            warn("[Slow Hub] Place registration not saved: " .. tostring(err))
-            return true, NAMES[mode] .. " registered for this session only"
-        end
-        return true, NAMES[mode] .. " linked to Place " .. tostring(candidate.PlaceId)
+    function Guard.ModeName()
+        local mode = Guard.Detected()
+        return mode and MODES[mode].Name or "Lobby / Unsupported mode"
     end
 
     function Guard.Status()
-        local pieces = {}
-        for _, key in ipairs({"Story", "Raids", "Zzz"}) do
-            local entry = records[key]
-            local state = not entry and "Not registered"
-                or (Guard.Allowed(key) and "Allowed" or "Other Place/mode")
-            table.insert(pieces, NAMES[key] .. ": " .. state)
-        end
-        return table.concat(pieces, " | ")
+        return Guard.ModeName()
     end
 
     function Guard.Diagnostics()
-        local attributes = WS:GetAttributes()
-        local keys = {}
-        for key in pairs(attributes) do
-            table.insert(keys, tostring(key))
-        end
-        table.sort(keys)
-        local lines = {
-            "Anime Zero - Slow Hub place diagnostics",
-            "GameId (universe): " .. tostring(game.GameId),
-            "PlaceId: " .. tostring(game.PlaceId),
-            "JobId present: " .. tostring(game.JobId ~= ""),
-            "Workspace Mode: " .. (modeValue() ~= "" and modeValue() or "(missing)"),
-            "Workspace attributes:"
-        }
-        for _, key in ipairs(keys) do
-            local value = attributes[key]
-            if type(value) == "string" or type(value) == "number"
-                or type(value) == "boolean" then
-                table.insert(lines, "  " .. key .. " = " .. tostring(value))
-            end
+        if not Guard.IsDeveloper() then
+            return "Developer diagnostics restricted"
         end
         local gui = Player:FindFirstChildOfClass("PlayerGui")
+        local lines = {
+            "Slow Hub | Anime Zero diagnostics",
+            "Universe ID: " .. tostring(game.GameId),
+            "Place ID: " .. tostring(game.PlaceId),
+            "Workspace.Mode: " .. (currentMode() ~= "" and currentMode() or "(missing)"),
+            "Detected mode: " .. Guard.ModeName(),
+            "Story allowed: " .. tostring(Guard.Allowed("Story")),
+            "Shadow Monarch allowed: " .. tostring(Guard.Allowed("Raids")),
+            "Zzz World allowed: " .. tostring(Guard.Allowed("Zzz"))
+        }
         for _, name in ipairs({"RunManage", "InfiniteManage", "BossBar", "EndScreen"}) do
             local object = gui and gui:FindFirstChild(name)
-            local visible = object and object:IsA("ScreenGui") and object.Enabled
-            table.insert(lines, "GUI " .. name .. ": " ..
-                (object and (visible and "enabled" or "present") or "missing"))
+            table.insert(lines, "GUI " .. name .. ": "
+                .. (object and (object:IsA("ScreenGui")
+                    and object.Enabled and "enabled" or "present") or "missing"))
+        end
+        local active = ctx.FarmMonitor
+        if active then
+            table.insert(lines, "Farm: " .. tostring(active.Mode))
+            table.insert(lines, "State: " .. tostring(active.State))
+            table.insert(lines, "Detected NPCs: " .. tostring(active.NPCs))
+            table.insert(lines, "Recoveries: " .. tostring(active.Recoveries))
+            table.insert(lines, "Last error: " .. tostring(active.LastError))
         end
         return table.concat(lines, "\n")
     end
