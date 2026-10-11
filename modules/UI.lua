@@ -406,8 +406,8 @@ return function(ctx)
         Callback = function(value) C.Position = value end
     })
     Settings:AddSlider("V11_Distance", {
-        Title = "Target Distance (studs)", Description = "Set the spacing maintained from the target; Lift locks the height offset.", Min = 1, Max = 20,
-        Default = 6, Rounding = 1,
+        Title = "Target Distance (studs)", Description = "Shared spacing for all farm modes; Lift locks attack height and position.", Min = 1, Max = 20,
+        Default = 12, Rounding = 1,
         Callback = function(value) C.Distance = value end
     })
     Settings:AddToggle("V11_Noclip", {
