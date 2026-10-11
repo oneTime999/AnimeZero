@@ -245,7 +245,7 @@ return function(ctx)
             if Lift.AutoNextFloor and os.clock() >= (Lift.NextFloorAt or 0)
                 and not Lift.NextFloorBusy then
                 -- Give the prompt path a short chance to complete before remote fallback.
-                if os.clock() - (Lift.EmptySince or os.clock()) >= 4 then
+                if os.clock() - (Lift.EmptySince or os.clock()) >= 12 then
                     if fireNextFloor() then return end
                 end
             end
