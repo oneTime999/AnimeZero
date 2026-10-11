@@ -125,6 +125,8 @@ local ZzzzWorld = {
     Target = nil
 }
 
+local Lift = { Enabled = false, Target = nil, Status = "Disabled", NextPromptAt = 0, PromptAttempts = 0 }
+
 local Raid = {
     Enabled = false,
     Status = "Disabled",
@@ -165,7 +167,7 @@ local Skill = {
 return {
     Players = Players, RS = RS, WS = WS, RunService = RunService,
     VU = VU, Player = Player, Env = Env, VIM = VIM,
-    C = C, S = S, Raid = Raid, ZzzzWorld = ZzzzWorld, Skill = Skill,
+    C = C, S = S, Raid = Raid, ZzzzWorld = ZzzzWorld, Lift = Lift, Skill = Skill,
     RubbleCoordinates = RubbleCoordinates, WaveCoordinates = WaveCoordinates,
     LastBorder = LastBorder, LastEnemyWave = LastEnemyWave,
     Functions = {},
