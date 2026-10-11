@@ -421,7 +421,7 @@ return function(ctx)
         Callback = function(value) C.Position = value end
     })
     Settings:AddSlider("V11_Distance", {
-        Title = "Target Distance (studs)", Description = "Shared spacing for all farm modes; Lift locks attack height and position.", Min = 1, Max = 20,
+        Title = "Target Distance (studs)", Description = "Shared spacing for NPCs and rubble across farm modes; Lift locks attack height and position.", Min = 1, Max = 50,
         Default = 12, Rounding = 1,
         Callback = function(value) C.Distance = value end
     })
