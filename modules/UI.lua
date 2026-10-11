@@ -406,8 +406,8 @@ return function(ctx)
         Callback = function(value) C.Position = value end
     })
     Settings:AddSlider("V11_Distance", {
-        Title = "Target Distance", Description = "Set the spacing maintained from the target.", Min = 1, Max = 12,
-        Default = 3, Rounding = 1,
+        Title = "Target Distance (studs)", Description = "Set the spacing maintained from the target; Lift locks the height offset.", Min = 1, Max = 20,
+        Default = 6, Rounding = 1,
         Callback = function(value) C.Distance = value end
     })
     Settings:AddToggle("V11_Noclip", {
