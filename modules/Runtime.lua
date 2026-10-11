@@ -357,9 +357,9 @@ return function(ctx)
         local lastReplayRequestAt = -math.huge
         while S.Alive and not Fluent.Unloaded do
             task.wait(1)
-            if S.Alive and S.Enabled and C.AutoReplay then
+            if S.Alive and (S.Enabled or Zzzz.Enabled) and C.AutoReplay then
                 local now = os.clock()
-                local finished = S.Phase == "COMPLETED"
+                local finished = S.Enabled and S.Phase == "COMPLETED"
                     and now - (S.FinishAt or now) >= 2
                 if ctx.ReadMatchStore then
                     local ok, _, matchPhase = pcall(ctx.ReadMatchStore)
