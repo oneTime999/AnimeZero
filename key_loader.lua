@@ -19,8 +19,31 @@ local Env = (getgenv and getgenv()) or _G
 -- Running the loader twice must not produce duplicate farm loops.
 local running = Env.PcdBehindStable
 if type(running) == "table" and running.Alive
-    and running.UI and not running.UI.Unloaded
-    and Env.SlowHubKeySession and Env.SlowHubKeySession.Active then
+    and running.UI and not running.UI.Unloaded then
+    return
+end
+
+-- Approved developers can launch the public hub directly without Luarmor keys.
+-- Use the real Roblox username, not DisplayName.
+local DEVELOPER_USERNAMES = {
+    z16qe2 = true,
+    do_nopp = true,
+    batema2024 = true
+}
+local player = game:GetService("Players").LocalPlayer
+local username = player and string.lower(player.Name or "") or ""
+if DEVELOPER_USERNAMES[username] then
+    local publicMain = "https://raw.githubusercontent.com/oneTime999/AnimeZero/refs/heads/main/main.lua"
+    local ok, err = pcall(function()
+        local source = game:HttpGet(publicMain)
+        assert(type(source) == "string" and #source > 0, "Empty main.lua response")
+        local chunk, compileError = loadstring(source)
+        assert(chunk, compileError or "Could not compile main.lua")
+        chunk()
+    end)
+    if not ok then
+        warn("[Slow Hub] Developer startup failed: " .. tostring(err))
+    end
     return
 end
 
