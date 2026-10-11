@@ -263,7 +263,7 @@ return function(ctx)
 
     liftToggle = LiftTab:AddToggle("AnimeZero_LiftAutoFarm", {
         Title = "Lift Auto Farm",
-        Description = "Automatically clears each wave, moves to the Lift, and advances to the next wave.",
+        Description = "Fights from a safe ground position and advances after each floor is cleared.",
         Default = false,
         Callback = function(value)
             if value then
