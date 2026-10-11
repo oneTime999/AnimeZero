@@ -22,9 +22,12 @@ return function(ctx)
     local Guard = {}
 
     function Guard.IsDeveloper()
-        -- This is the Roblox username (Player.Name), NOT DisplayName.
-        -- Client-only feature visibility is not a secure permission boundary.
-        return Player.Name:lower() == "z16qe2"
+        -- Roblox usernames (Player.Name), not DisplayName.
+        -- Client-side visibility is not a secure permission boundary.
+        local username = Player.Name:lower()
+        return username == "z16qe2"
+            or username == "do_nopp"
+            or username == "batema2024"
     end
 
     function Guard.Detected()
