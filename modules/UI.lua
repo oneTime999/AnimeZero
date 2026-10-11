@@ -30,9 +30,6 @@ return function(ctx)
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
     local Webhooks = Window:AddTab({Title = "Webhooks", Icon = "bell"})
     local Profiles = Window:AddTab({Title = "Profiles", Icon = "save"})
-    local Developer = Guard.IsDeveloper() and Window:AddTab({
-        Title = "Developer", Icon = "flask-conical"
-    }) or nil
 
     local storyToggle
     local raidToggle
@@ -416,5 +413,4 @@ return function(ctx)
     ctx.Settings = Settings
     ctx.Webhooks = Webhooks
     ctx.Profiles = Profiles
-    ctx.DeveloperTab = Developer
 end
