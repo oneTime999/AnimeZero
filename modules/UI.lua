@@ -402,7 +402,7 @@ return function(ctx)
         Title = "Attack Position",
         Description = "Choose where your character stays relative to the target.",
         Values = {"Behind", "Above", "Inside", "Below", "Front", "Left", "Right"},
-        Default = "Behind",
+        Default = "Below",
         Callback = function(value) C.Position = value end
     })
     Settings:AddSlider("V11_Distance", {
