@@ -323,7 +323,7 @@ return function(ctx)
             seconds % 60)
     end
 
-    local function send(report, isTest)
+    local function send(report)
         local stats, options = report.Stats, Config.Fields
         local fields = {}
         local function addField(enabled, name, value, inline)
@@ -344,13 +344,13 @@ return function(ctx)
         addField(options.Damage, "Damage Dealt", stats["Damage Dealt"])
 
         local earnedEXP = stats["EXP Earned"]
-        if earnedEXP and Config.FarmTotals and not isTest then
+        if earnedEXP and Config.FarmTotals then
             earnedEXP = earnedEXP .. " (" .. formatNumber(Session.EXP) .. " total)"
         end
         addField(options.EXP, "EXP Earned", earnedEXP)
 
         local earnedGems = stats["Gems Earned"]
-        if earnedGems and Config.FarmTotals and not isTest then
+        if earnedGems and Config.FarmTotals then
             earnedGems = earnedGems .. " (" .. formatNumber(Session.GemsEarned) .. " total)"
         end
         addField(options.GemsEarned, "Gems Earned", earnedGems)
@@ -360,7 +360,7 @@ return function(ctx)
             for _, item in ipairs(report.Rewards or {}) do
                 if options[item.Category] then
                     local earned = "+" .. formatNumber(item.Amount)
-                    if Config.FarmTotals and not isTest then
+                    if Config.FarmTotals then
                         earned = earned .. " ("
                             .. formatNumber(Session.Rewards[item.Key or item.Name]
                                 or item.Amount)
@@ -377,7 +377,7 @@ return function(ctx)
             addField(true, "Rewards", content, false)
         end
 
-        if Config.FarmTotals and not isTest then
+        if Config.FarmTotals then
             addField(true, "Farm Session",
                 "Rounds: " .. Session.Rounds
                 .. " | Victories: " .. Session.Wins
@@ -387,41 +387,18 @@ return function(ctx)
         end
 
         local payload = {
-            title = isTest and "Slow Hub - Test Notification"
-                or "Anime Zero - Match Results",
-            color = isTest and 3447003
-                or (options.Result and (report.Win and 5763719 or 15548997) or 9807270),
-            description = isTest and "Test message with example match statistics and rewards." or nil,
+            title = "Anime Zero - Match Results",
+            color = options.Result
+                and (report.Win and 5763719 or 15548997) or 9807270,
+            description = nil,
             fields = fields,
-            footer = {text = isTest and "Slow Hub • Test Notification"
-                or "Slow Hub • Anime Zero"}
+            footer = {text = "Slow Hub • Anime Zero"}
         }
         if #fields == 0 then
             payload.description = (payload.description or "")
                 .. "\nNo fields selected for this notification."
         end
         return postEmbed(payload)
-    end
-
-    local function testReport()
-        return {
-            Win = true,
-            Difficulty = "Hard",
-            Stats = {
-                ["Play Time"] = "00:05:42",
-                ["Enemies Killed"] = "35",
-                ["Damage Dealt"] = "1.25M",
-                ["EXP Earned"] = "3900",
-                ["Gems Earned"] = "200"
-            },
-            Source = "RunStore",
-            Rewards = {
-                {Name = "Coins", Category = "Coins", Amount = 1000},
-                {Name = "Gems", Category = "RewardGems", Amount = 200},
-                {Name = "Trait Rerolls", Category = "TraitRerolls", Amount = 3},
-                {Name = "Material #101", Category = "Materials", Amount = 2}
-            },
-        }
     end
 
     Webhooks:AddSection("Farm Session")
@@ -443,24 +420,6 @@ return function(ctx)
             })
         end
     })
-
-    -- Test delivery is a developer tool; ordinary users only receive
-    -- actual match notifications configured above.
-    local lastTestAt = -math.huge
-    ctx.DeveloperWebhookTest = function()
-        if not ctx.GameGuard or not ctx.GameGuard.IsDeveloper() then
-            return false, "Developer only"
-        end
-        local now = os.clock()
-        if now - lastTestAt < 5 then
-            return false, "Wait 5 seconds between test notifications"
-        end
-        if not tracker.Active or not S.Alive then
-            return false, "Webhook tracker is not active"
-        end
-        lastTestAt = now
-        return send(testReport(), true)
-    end
 
     local roundCaptured = false
     local lastCaptureSource = nil
@@ -489,7 +448,7 @@ return function(ctx)
                     warn("[Slow Hub] Duplicate match webhook suppressed")
                     return
                 end
-                local success, message = send(report, false)
+                local success, message = send(report)
                 if success ~= true then
                     warn("[Slow Hub] Match webhook: " .. tostring(message))
                     if success == false then
