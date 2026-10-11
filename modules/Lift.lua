@@ -98,7 +98,7 @@ return function(ctx)
         if away.Magnitude < 0.1 then away = Vector3.new(1, 0, 0) end
         away = away.Unit
 
-        local desired = targetPart.Position + away * GROUND_DISTANCE
+        local desired = targetPart.Position + away * (Lift.GroundDistance or GROUND_DISTANCE)
         local groundCF = groundCFrameAt(desired, targetPart.Position, Player.Character, enemies)
         if not groundCF then
             Lift.Status = "Searching for safe ground"
