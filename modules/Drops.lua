@@ -3,6 +3,7 @@ return function(ctx)
     local Player, F = ctx.Player, ctx.Functions
     local records = {}
     local attempts = {}
+    local attemptCounts = {}
     local dropState, subscription
     local lastProbe, lastScan, lastSend = -math.huge, -math.huge, -math.huge
     local lastWarning = -math.huge
@@ -17,6 +18,7 @@ return function(ctx)
 
     local function getAtom(atom)
         if atom == nil then return nil end
+        if typeof(atom) == "Vector3" then return atom end
         local ok, value = pcall(function() return atom:get() end)
         return ok and value or nil
     end
@@ -46,6 +48,7 @@ return function(ctx)
         if entry and (not expected or entry.Drop == expected) then
             records[id] = nil
             attempts[id] = nil
+            attemptCounts[id] = nil
             if monitor.LastID == id then monitor.Confirmed += 1 end
         end
     end
@@ -99,7 +102,7 @@ return function(ctx)
         -- The game allocates drop IDs from 0 through 255. Query keys
         -- directly as a fallback when the observer or snapshot is delayed.
         local ok, all = pcall(function() return dropState:getAll() end)
-        if ok and type(all) == "table" and next(all) ~= nil then
+        if ok and type(all) == "table" then
             local active = {}
             for rawId, drop in pairs(all) do
                 local id = validId(rawId)
@@ -185,55 +188,24 @@ return function(ctx)
         return false
     end
 
-    local function pickup()
-        local remote = RS:FindFirstChild("recoverDrop")
-        if not remote or not remote:IsA("RemoteEvent") then
-            monitor.Status = "recoverDrop remote missing"
-            return
-        end
-        local _, root = F.character()
-        if not root then return end
-        local now = os.clock()
-        if now - lastSend < 0.35 then return end
-
-        local selected, bestDistance, inRange, count = nil, math.huge, 0, 0
-        local nearestFar, farDistance, farPosition
-        for id, record in pairs(records) do
-            count += 1
-            local pos = readPosition(record.Drop)
-            if pos then
-                local distance = (pos - root.Position).Magnitude
-                if distance <= 12 then inRange += 1 end
-                if now - record.AddedAt >= 1.4
-                    and now - (attempts[id] or -math.huge) >= 2 then
-                    if distance <= 12 and distance < bestDistance then
-                        selected, bestDistance = id, distance
-                    elseif distance > 12 and distance < farDistance then
-                        nearestFar, farDistance, farPosition = id, distance, pos
-                    end
-                end
+    local function hasVisualDrops()
+        local effects = ctx.WS and ctx.WS:FindFirstChild("effects")
+        if not effects then return false end
+        for _, child in ipairs(effects:GetChildren()) do
+            if child.Name == "cash" or child.Name == "health" then
+                return true
             end
         end
-        monitor.Found, monitor.InRange = count, inRange
+        return false
+    end
 
-        if selected == nil then
-            if nearestFar ~= nil then
-                maybeApproach(nearestFar, farPosition, root, now)
-                monitor.Status = approach and "Moving to nearby drop"
-                    or "Waiting for a drop in pickup range"
-            else
-                monitor.Status = count > 0 and "Waiting for drop to be ready"
-                    or "Waiting for drops"
-            end
-            return
-        end
-        attempts[selected], lastSend = now, now
-        monitor.LastID = selected
+    local function send(remote, id, now)
+        attempts[id] = now
+        lastSend = now
+        monitor.LastID = id
         monitor.Attempts += 1
-        monitor.Status = "Requesting drop " .. tostring(selected)
         local ok, err = pcall(function()
-            -- The argument is a u16 dropStore ID, not a fixed drop number.
-            remote:FireServer(selected)
+            remote:FireServer(id)
         end)
         if not ok then
             monitor.LastError = tostring(err)
@@ -242,16 +214,88 @@ return function(ctx)
                 warn("[Slow Hub] recoverDrop failed: " .. tostring(err))
             end
         end
+        return ok
+    end
+
+    local function sweepFallback(remote, now)
+        if not hasVisualDrops() then
+            monitor.Status = "Waiting for drops"
+            return
+        end
+        -- dropStore assigns IDs from 0 through 255. This bounded fallback
+        -- is only used if the client cannot identify a visible drop.
+        monitor.Source = dropState and "Store empty; visual fallback"
+            or "Visual fallback"
+        monitor.Status = "Recovering visible drops"
+        for _ = 1, 3 do
+            local id = scanIndex
+            scanIndex = (scanIndex + 1) % 256
+            send(remote, id, now)
+        end
+    end
+
+    local function pickup()
+        local remote = RS:FindFirstChild("recoverDrop")
+        if not remote or not remote:IsA("RemoteEvent") then
+            monitor.Status = "recoverDrop remote missing"
+            return
+        end
+        local _, root = F.character()
+        if not root then return end
+
+        local now = os.clock()
+        if now - lastSend < 0.14 then return end
+
+        local selected, bestDistance, chosenPosition = nil, math.huge, nil
+        local inRange, count = 0, 0
+
+        for id, record in pairs(records) do
+            count += 1
+            local position = readPosition(record.Drop)
+            local distance = position
+                and (position - root.Position).Magnitude or math.huge
+            if distance <= 12 then inRange += 1 end
+
+            -- Always try the actual active ID, including distant drops.
+            -- The normal 12-stud magnet is client-side and must not
+            -- block a recoverDrop request before the server checks it.
+            if now - record.AddedAt >= 0.12
+                and now - (attempts[id] or -math.huge) >= 0.85
+                and (selected == nil or distance < bestDistance) then
+                selected, bestDistance, chosenPosition = id, distance, position
+            end
+        end
+
+        monitor.Found, monitor.InRange = count, inRange
+
+        if selected == nil then
+            if count == 0 then
+                sweepFallback(remote, now)
+            else
+                monitor.Status = "Waiting to retry active drops"
+            end
+            return
+        end
+
+        -- If direct remote requests did not clear a distant drop,
+        -- temporarily approach it only while all farms are idle.
+        if chosenPosition and bestDistance > 12
+            and (attemptCounts[selected] or 0) >= 2 then
+            maybeApproach(selected, chosenPosition, root, now)
+        end
+
+        attemptCounts[selected] = (attemptCounts[selected] or 0) + 1
+        monitor.Status = "Requesting drop " .. tostring(selected)
+        send(remote, selected, now)
     end
 
     task.spawn(function()
         while S.Alive and not (ctx.Fluent and ctx.Fluent.Unloaded) do
             if C.AutoCollectDrops then
                 local ok, err = pcall(function()
-                    if connect() then
-                        scan()
-                        pickup()
-                    end
+                    connect()
+                    if dropState then scan() end
+                    pickup()
                 end)
                 if not ok then
                     monitor.LastError = tostring(err)
