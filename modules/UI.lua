@@ -3,6 +3,7 @@ return function(ctx)
     local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
     local Zzzz = ctx.ZzzzWorld
+    local Lift = ctx.Lift
     local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
     local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
@@ -34,6 +35,7 @@ return function(ctx)
     local storyToggle
     local raidToggle
     local zzzzToggle
+    local liftToggle
 
     local function denyActivation(mode, toggle)
         if Guard.Allowed(mode) then return false end
@@ -96,6 +98,12 @@ return function(ctx)
             end
         end
 
+        if selected ~= "Lift" then
+            Lift.Enabled = false
+            Lift.Target = nil
+            if liftToggle and liftToggle.Value then liftToggle:SetValue(false) end
+        end
+
         if selected ~= "Zzz" then
             Zzzz.Enabled = false
             Zzzz.Target = nil
@@ -109,10 +117,11 @@ return function(ctx)
         local running = (S.Enabled and 1 or 0)
             + (Raid.Enabled and 1 or 0)
             + (Zzzz.Enabled and 1 or 0)
+            + (Lift.Enabled and 1 or 0)
         if running <= 1 then return end
 
         local selected = ctx.ActiveFarmMode
-        if selected ~= "Story" and selected ~= "Raids" and selected ~= "Zzz" then
+        if selected ~= "Story" and selected ~= "Raids" and selected ~= "Zzz" and selected ~= "Lift" then
             selected = S.Enabled and "Story"
                 or Raid.Enabled and "Raids"
                 or "Zzz"
@@ -231,6 +240,47 @@ return function(ctx)
             elseif not S.Enabled and not Raid.Enabled then
                 F.releaseHold()
                 F.restoreCollisions()
+            end
+        end
+    })
+
+    local LiftTab = Window:AddTab({Title = "Lift", Icon = "arrow-up-down"})
+    LiftTab:AddSection("Endless Lift Waves")
+    liftToggle = LiftTab:AddToggle("AnimeZero_LiftAutoFarm", {
+        Title = "Lift Auto Farm",
+        Description = "Automatically clears each wave, tweens to the Lift, and activates its ProximityPrompt to advance.",
+        Default = false,
+        Callback = function(value)
+            if value then
+                local world = WS:FindFirstChild("World")
+                local markers = world and world:FindFirstChild("Markers")
+                local lift = markers and markers:FindFirstChild("Lift")
+                local prompt = lift and lift:FindFirstChildWhichIsA("ProximityPrompt", true)
+                if not prompt then
+                    Fluent:Notify({Title = "Lift unavailable", Content = "Join the endless Lift mode before enabling this farm.", Duration = 6})
+                    task.defer(function() if liftToggle and liftToggle.Value then liftToggle:SetValue(false) end end)
+                    return
+                end
+                switchToMode("Lift")
+                Lift.Enabled = true
+                Lift.Target = nil
+                Lift.Status = "Starting Lift farm"
+                Lift.NextPromptAt = 0
+                Lift.PromptAttempts = 0
+                F.cancelTravel()
+                F.releaseHold()
+                S.LastM1 = 0
+                for _, skill in ipairs(Skill) do skill.Last = -math.huge end
+            else
+                Lift.Enabled = false
+                Lift.Target = nil
+                if ctx.ActiveFarmMode == "Lift" then ctx.ActiveFarmMode = nil end
+                F.cancelTravel()
+                F.releaseHold()
+                if not S.Enabled and not Raid.Enabled and not Zzzz.Enabled then
+                    F.restoreCollisions()
+                end
+                Lift.Status = "Disabled"
             end
         end
     })
