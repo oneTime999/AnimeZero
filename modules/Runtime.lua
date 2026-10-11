@@ -371,6 +371,7 @@ return function(ctx)
         local lastReplayMode = nil
         local sawActiveZzz = false
         local zzzFinishSince = nil
+        local zzzReplayAttempts = 0
         while S.Alive and not Fluent.Unloaded do
             task.wait(1)
             local replayMode = (S.Enabled and allowed("Story")) and "Story"
@@ -379,6 +380,7 @@ return function(ctx)
                 lastReplayMode = replayMode
                 sawActiveZzz = false
                 zzzFinishSince = nil
+                zzzReplayAttempts = 0
                 lastReplayRequestAt = -math.huge
             end
             if S.Alive and replayMode and C.AutoReplay then
@@ -414,8 +416,14 @@ return function(ctx)
                 end
                 local gui = Player:FindFirstChildOfClass("PlayerGui")
                 local endScreen = gui and gui:FindFirstChild("EndScreen")
-                finished = finished or (endScreen
-                    and endScreen:IsA("ScreenGui") and endScreen.Enabled)
+                local resultScreenVisible = endScreen
+                    and endScreen:IsA("ScreenGui") and endScreen.Enabled
+                finished = finished or resultScreenVisible
+                if replayMode == "Zzz"
+                    and matchPhase == "active" and not resultScreenVisible then
+                    -- The server confirmed that another round is underway.
+                    zzzReplayAttempts = 0
+                end
                 local holdingResult = false
                 if ctx.WebhookPauseReplay then
                     local ok, blocked = pcall(ctx.WebhookPauseReplay)
@@ -423,6 +431,7 @@ return function(ctx)
                 end
                 local replayDelay = replayMode == "Zzz" and 8 or 3
                 if finished and not holdingResult
+                    and (replayMode ~= "Zzz" or zzzReplayAttempts < 3)
                     and now - lastReplayRequestAt >= replayDelay then
                     local remote = RS:FindFirstChild("endAction")
                     if remote and remote:IsA("RemoteEvent") then
@@ -432,10 +441,15 @@ return function(ctx)
                         if ok then
                             lastReplayRequestAt = now
                             if replayMode == "Zzz" then
-                                -- FireServer only confirms dispatch, not the
-                                -- next run. Retry at the normal 8-second
-                                -- interval while a finished result persists.
+                                -- FireServer confirms dispatch, not acceptance.
+                                -- Allow at most three attempts per finished
+                                -- run, reset when RunStore becomes active.
+                                zzzReplayAttempts += 1
                                 Zzzz.Status = "Auto Replay requested"
+                                if zzzReplayAttempts == 3 then
+                                    warn("[Slow Hub] Zzz replay not confirmed "
+                                        .. "after 3 attempts; waiting for new run")
+                                end
                             end
                         end
                     end
