@@ -250,7 +250,7 @@ return function(ctx)
     LiftTab:AddSection("Endless Lift Waves")
     liftToggle = LiftTab:AddToggle("AnimeZero_LiftAutoFarm", {
         Title = "Lift Auto Farm",
-        Description = "Automatically clears each wave, tweens to the Lift, and activates its ProximityPrompt to advance.",
+        Description = "Automatically clears each wave, moves to the Lift, and advances to the next wave.",
         Default = false,
         Callback = function(value)
             if value then
