@@ -20,7 +20,6 @@ return function(ctx)
     if AutoSave.Available then
         SaveManager:SetLibrary(Fluent)
         SaveManager:SetFolder("PcdFnlBossV11")
-        SaveManager:BuildConfigSection(Profiles)
         Profiles:AddParagraph({
             Title = "Automatic Saving",
             Content = "Settings are saved automatically."
@@ -43,7 +42,6 @@ return function(ctx)
     if AutoSave.Available then
         for id, option in pairs(Fluent.Options) do
             if type(id) == "string"
-                and (id:match("^V11_") or id:match("^Stable_") or id:match("^HxH_"))
                 and type(option.OnChanged) == "function" then
                 option:OnChanged(function()
                     if AutoSave.Ready then
