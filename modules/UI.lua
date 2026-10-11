@@ -291,6 +291,8 @@ return function(ctx)
                 Lift.Status = "Starting Lift farm"
                 Lift.NextPromptAt = 0
                 Lift.PromptAttempts = 0
+                Lift.PromptHolding = false
+                Lift.PromptHoldCF = nil
                 F.cancelTravel()
                 F.releaseHold()
                 S.LastM1 = 0
@@ -298,6 +300,8 @@ return function(ctx)
             else
                 Lift.Enabled = false
                 Lift.Target = nil
+                Lift.PromptHolding = false
+                Lift.PromptHoldCF = nil
                 if ctx.ActiveFarmMode == "Lift" then ctx.ActiveFarmMode = nil end
                 F.cancelTravel()
                 F.releaseHold()
