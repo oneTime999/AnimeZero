@@ -355,15 +355,40 @@ return function(ctx)
     -- accidentally request a restart while enemies were still alive.
     task.spawn(function()
         local lastReplayRequestAt = -math.huge
+        local lastReplayMode = nil
+        local sawActiveZzz = false
         while S.Alive and not Fluent.Unloaded do
             task.wait(1)
-            if S.Alive and (S.Enabled or Zzzz.Enabled) and C.AutoReplay then
+            local replayMode = S.Enabled and "Story"
+                or (Zzzz.Enabled and "Zzz" or nil)
+            if replayMode ~= lastReplayMode then
+                lastReplayMode = replayMode
+                sawActiveZzz = false
+                lastReplayRequestAt = -math.huge
+            end
+            if S.Alive and replayMode and C.AutoReplay then
                 local now = os.clock()
                 local finished = S.Enabled and S.Phase == "COMPLETED"
                     and now - (S.FinishAt or now) >= 2
+                local matchPhase
                 if ctx.ReadMatchStore then
-                    local ok, _, matchPhase = pcall(ctx.ReadMatchStore)
-                    finished = finished or (ok and matchPhase == "finished")
+                    local ok, _, phase = pcall(ctx.ReadMatchStore)
+                    if ok then matchPhase = phase end
+                end
+                if replayMode == "Zzz" then
+                    if matchPhase == "active" then
+                        sawActiveZzz = true
+                    end
+                    local noLivingEnemies = false
+                    if matchPhase == "finished" and sawActiveZzz then
+                        local ok, anyEnemy = pcall(F.livingEnemyExists)
+                        noLivingEnemies = ok and not anyEnemy
+                    end
+                    -- Ignore stale results from a previous infinite run.
+                    finished = matchPhase == "finished"
+                        and sawActiveZzz and noLivingEnemies
+                else
+                    finished = finished or matchPhase == "finished"
                 end
                 local gui = Player:FindFirstChildOfClass("PlayerGui")
                 local endScreen = gui and gui:FindFirstChild("EndScreen")
@@ -374,14 +399,21 @@ return function(ctx)
                     local ok, blocked = pcall(ctx.WebhookPauseReplay)
                     holdingResult = ok and blocked == true
                 end
+                local replayDelay = replayMode == "Zzz" and 8 or 3
                 if finished and not holdingResult
-                    and now - lastReplayRequestAt >= 3 then
+                    and now - lastReplayRequestAt >= replayDelay then
                     local remote = RS:FindFirstChild("endAction")
                     if remote and remote:IsA("RemoteEvent") then
                         local ok = pcall(function()
                             remote:FireServer(buffer.fromstring("\001"))
                         end)
-                        if ok then lastReplayRequestAt = now end
+                        if ok then
+                            lastReplayRequestAt = now
+                            if replayMode == "Zzz" then
+                                sawActiveZzz = false
+                                Zzzz.Status = "Auto Replay requested"
+                            end
+                        end
                     end
                 end
             end
