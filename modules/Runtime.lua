@@ -370,6 +370,7 @@ return function(ctx)
         local lastReplayRequestAt = -math.huge
         local lastReplayMode = nil
         local sawActiveZzz = false
+        local zzzFinishSince = nil
         while S.Alive and not Fluent.Unloaded do
             task.wait(1)
             local replayMode = (S.Enabled and allowed("Story")) and "Story"
@@ -377,6 +378,7 @@ return function(ctx)
             if replayMode ~= lastReplayMode then
                 lastReplayMode = replayMode
                 sawActiveZzz = false
+                zzzFinishSince = nil
                 lastReplayRequestAt = -math.huge
             end
             if S.Alive and replayMode and C.AutoReplay then
@@ -389,17 +391,24 @@ return function(ctx)
                     if ok then matchPhase = phase end
                 end
                 if replayMode == "Zzz" then
+                    -- A run can finish before the server clears the enemy
+                    -- folder. Use its actual result state, not NPC cleanup.
+                    -- Seeing this mode active avoids replaying stale results.
                     if matchPhase == "active" then
                         sawActiveZzz = true
+                    elseif not sawActiveZzz and matchPhase ~= "finished" then
+                        -- RunStore might not expose an active participant in
+                        -- time. Existing combat is also proof of this run.
+                        local ok, enemiesExist = pcall(F.livingEnemyExists)
+                        if ok and enemiesExist then sawActiveZzz = true end
                     end
-                    local noLivingEnemies = false
                     if matchPhase == "finished" and sawActiveZzz then
-                        local ok, anyEnemy = pcall(F.livingEnemyExists)
-                        noLivingEnemies = ok and not anyEnemy
+                        zzzFinishSince = zzzFinishSince or now
+                        finished = now - zzzFinishSince >= 1
+                    else
+                        zzzFinishSince = nil
+                        finished = false
                     end
-                    -- Ignore stale results from a previous infinite run.
-                    finished = matchPhase == "finished"
-                        and sawActiveZzz and noLivingEnemies
                 else
                     finished = finished or matchPhase == "finished"
                 end
@@ -423,7 +432,9 @@ return function(ctx)
                         if ok then
                             lastReplayRequestAt = now
                             if replayMode == "Zzz" then
-                                sawActiveZzz = false
+                                -- FireServer only confirms dispatch, not the
+                                -- next run. Retry at the normal 8-second
+                                -- interval while a finished result persists.
                                 Zzzz.Status = "Auto Replay requested"
                             end
                         end
