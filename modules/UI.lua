@@ -27,6 +27,7 @@ return function(ctx)
     local Story = Window:AddTab({Title = "Story", Icon = "book-open"})
     local Raids = Window:AddTab({Title = "Raids", Icon = "swords"})
     local ZzzzTab = Window:AddTab({Title = "Zzz World", Icon = "infinity"})
+    local LiftTab = Window:AddTab({Title = "Lift", Icon = "arrow-up-down"})
     local Combat = Window:AddTab({Title = "Combat", Icon = "flame"})
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
     local Webhooks = Window:AddTab({Title = "Webhooks", Icon = "bell"})
@@ -246,7 +247,6 @@ return function(ctx)
         end
     })
 
-    local LiftTab = Window:AddTab({Title = "Lift", Icon = "arrow-up-down"})
     LiftTab:AddSection("Endless Lift Waves")
     liftToggle = LiftTab:AddToggle("AnimeZero_LiftAutoFarm", {
         Title = "Lift Auto Farm",
