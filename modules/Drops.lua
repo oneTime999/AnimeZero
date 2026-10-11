@@ -144,6 +144,10 @@ return function(ctx)
         if not (S.Enabled or ctx.Raid.Enabled or ctx.ZzzzWorld.Enabled) then
             return false
         end
+        local guard = ctx.GameGuard
+        local currentMode = S.Enabled and "Story"
+            or (ctx.Raid.Enabled and "Raids" or "Zzz")
+        if not guard or not guard.Allowed(currentMode) then return false end
         local ok, enemies = pcall(F.livingEnemyExists)
         return ok and not enemies
     end
