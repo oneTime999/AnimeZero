@@ -297,6 +297,63 @@ return function(ctx)
         Callback = function(value) C.AFK = value end
     })
 
+    Settings:AddSection("Farm Monitor")
+    local statusLine = Settings:AddParagraph({
+        Title = "Farm Status", Content = "Waiting for farm activation"
+    })
+    local activityLine = Settings:AddParagraph({
+        Title = "Farm Activity", Content = "NPCs: 0"
+    })
+    local recoveryLine = Settings:AddParagraph({
+        Title = "Auto Recovery", Content = "No recovery needed"
+    })
+    local errorLine = Settings:AddParagraph({
+        Title = "Last Error", Content = "None"
+    })
+
+    local function age(at)
+        if type(at) ~= "number" then return "Never" end
+        local elapsed = math.max(0, math.floor(os.clock() - at))
+        if elapsed < 60 then return elapsed .. "s ago" end
+        if elapsed < 3600 then return math.floor(elapsed / 60) .. "m ago" end
+        return math.floor(elapsed / 3600) .. "h ago"
+    end
+
+    local lastDescriptions = {}
+    local function display(element, key, value)
+        if lastDescriptions[key] ~= value then
+            lastDescriptions[key] = value
+            if element and type(element.SetDesc) == "function" then
+                element:SetDesc(value)
+            end
+        end
+    end
+
+    task.spawn(function()
+        while S.Alive and not Fluent.Unloaded do
+            local data = ctx.FarmMonitor
+            if data then
+                local ok, err = pcall(function()
+                    display(statusLine, "status",
+                        tostring(data.Mode or "Off") .. " - " .. tostring(data.State or "Idle"))
+                    display(activityLine, "activity",
+                        "NPCs: " .. tostring(data.NPCs or 0)
+                        .. " | Last damage: " .. age(data.LastDamageAt)
+                        .. " | Last spawn: " .. age(data.LastSpawnAt))
+                    display(recoveryLine, "recovery",
+                        "Stage: " .. tostring(data.RecoveryStage or 0) .. "/3"
+                        .. " | Recoveries: " .. tostring(data.Recoveries or 0)
+                        .. " | Last: " .. tostring(data.LastReason or "None"))
+                    display(errorLine, "error", tostring(data.LastError or "None"))
+                end)
+                if not ok then
+                    warn("[Slow Hub] Farm monitor UI: " .. tostring(err))
+                    break
+                end
+            end
+            task.wait(2)
+        end
+    end)
 
     ctx.Fluent = Fluent
     ctx.Window = Window
