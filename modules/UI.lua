@@ -30,6 +30,9 @@ return function(ctx)
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
     local Webhooks = Window:AddTab({Title = "Webhooks", Icon = "bell"})
     local Profiles = Window:AddTab({Title = "Profiles", Icon = "save"})
+    local Developer = Guard.IsDeveloper() and Window:AddTab({
+        Title = "Developer", Icon = "flask-conical"
+    }) or nil
 
     local storyToggle
     local raidToggle
@@ -277,60 +280,6 @@ return function(ctx)
         })
     end
 
-    Settings:AddSection("Place & Mode Registration")
-    local placeStatus = Settings:AddParagraph({
-        Title = "Current Place",
-        Content = "Place: " .. tostring(game.PlaceId) .. " | " .. Guard.Status()
-    })
-    Settings:AddParagraph({
-        Title = "Important",
-        Content = "Enter the correct match first, then register its mode once. " ..
-            "A registered farm only runs in that Place and workspace Mode."
-    })
-
-    for _, entry in ipairs({
-        {Key = "Story", Title = "Register HxH Story Here"},
-        {Key = "Raids", Title = "Register Shadow Monarch Here"},
-        {Key = "Zzz", Title = "Register Zzz World Here"}
-    }) do
-        Settings:AddButton({
-            Title = entry.Title,
-            Description = "Only press while inside this exact match",
-            Callback = function()
-                local ok, message = Guard.Register(entry.Key)
-                Fluent:Notify({
-                    Title = ok and "Place Registered" or "Registration Refused",
-                    Content = message,
-                    Duration = 7
-                })
-            end
-        })
-    end
-
-    Settings:AddButton({
-        Title = "Copy Place Diagnostics",
-        Description = "Copy PlaceId, Universe ID and server mode attributes",
-        Callback = function()
-            local info = Guard.Diagnostics()
-            local copy = setclipboard or toclipboard
-            if type(copy) ~= "function" then
-                warn("[Slow Hub] Place diagnostics:\\n" .. info)
-                Fluent:Notify({
-                    Title = "Place Diagnostics",
-                    Content = "Clipboard unavailable; see executor console",
-                    Duration = 6
-                })
-                return
-            end
-            local ok = pcall(copy, info)
-            Fluent:Notify({
-                Title = "Place Diagnostics",
-                Content = ok and "Place details copied" or "Copy failed",
-                Duration = 6
-            })
-        end
-    })
-
     Settings:AddSection("Farm Automation")
 
     Settings:AddToggle("Stable_AutoReplay", {
@@ -399,6 +348,10 @@ return function(ctx)
     })
 
     Settings:AddSection("Farm Monitor")
+    local matchLine = Settings:AddParagraph({
+        Title = "Current Match",
+        Content = "Automatically detected: " .. Guard.ModeName()
+    })
     local statusLine = Settings:AddParagraph({
         Title = "Farm Status", Content = "Waiting for farm activation"
     })
@@ -435,8 +388,8 @@ return function(ctx)
             local data = ctx.FarmMonitor
             if data then
                 local ok, err = pcall(function()
-                    display(placeStatus, "place",
-                        "Place: " .. tostring(game.PlaceId) .. " | " .. Guard.Status())
+                    display(matchLine, "match",
+                        "Automatically detected: " .. Guard.ModeName())
                     display(statusLine, "status",
                         tostring(data.Mode or "Off") .. " - " .. tostring(data.State or "Idle"))
                     display(activityLine, "activity",
@@ -463,4 +416,5 @@ return function(ctx)
     ctx.Settings = Settings
     ctx.Webhooks = Webhooks
     ctx.Profiles = Profiles
+    ctx.DeveloperTab = Developer
 end
