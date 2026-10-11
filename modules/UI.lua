@@ -248,6 +248,19 @@ return function(ctx)
     })
 
     LiftTab:AddSection("Endless Lift Waves")
+    LiftTab:AddToggle("AnimeZero_LiftAutoNextFloor", {
+        Title = "Auto Next Floor",
+        Description = "Requests the next floor after all enemies are cleared.",
+        Default = true,
+        Callback = function(value)
+            Lift.AutoNextFloor = value
+            if not value then
+                Lift.EmptySince = nil
+                Lift.HadEnemies = false
+            end
+        end
+    })
+
     liftToggle = LiftTab:AddToggle("AnimeZero_LiftAutoFarm", {
         Title = "Lift Auto Farm",
         Description = "Automatically clears each wave, moves to the Lift, and advances to the next wave.",
