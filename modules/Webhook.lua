@@ -393,7 +393,8 @@ return function(ctx)
                 and (report.Win and 5763719 or 15548997) or 9807270,
             description = nil,
             fields = fields,
-            footer = {text = "Slow Hub • Anime Zero"}
+            footer = {text = "Slow Hub • Anime Zero"},
+            thumbnail = {url = "https://cdn.discordapp.com/attachments/1472812451102982226/1558734624031776820/4425a559c0e0497cdcf39aaac8f2b1ec.png?ex=6acc843e&is=6acb32be&hm=60a83115086d113438833906e6bfc4cab7bfef16a7d701a3c8cb439cb725fa6c"}
         }
         if #fields == 0 then
             payload.description = (payload.description or "")
