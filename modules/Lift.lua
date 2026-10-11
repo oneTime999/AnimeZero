@@ -140,9 +140,15 @@ return function(ctx)
     end
 
     local function fireNextFloor()
-        if Lift.NextFloorBusy then return false end
+        if Lift.NextFloorBusy then
+            Lift.Status = "Requesting next floor"
+            return false
+        end
         local now = os.clock()
-        if now < (Lift.NextFloorAt or 0) then return false end
+        if now < (Lift.NextFloorAt or 0) then
+            Lift.Status = "Waiting for next-floor cooldown"
+            return false
+        end
 
         local remote = RS:FindFirstChild("endAction")
         if not remote then
@@ -272,6 +278,10 @@ return function(ctx)
         if Lift.AutoNextFloor and Lift.HadEnemies then
             Lift.EmptySince = Lift.EmptySince or os.clock()
             if os.clock() - Lift.EmptySince >= CLEAR_CONFIRM then
+                if Lift.NextFloorBusy or os.clock() < (Lift.NextFloorAt or 0) then
+                    fireNextFloor()
+                    return
+                end
                 if fireNextFloor() then return end
             else
                 Lift.Status = "Confirming floor clear"
