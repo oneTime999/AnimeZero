@@ -167,7 +167,7 @@ return function(ctx)
         Lift.NextFloorBusy = true
         Lift.NextFloorAt = now + NEXT_FLOOR_COOLDOWN
         local ok, err = pcall(function()
-            remote:FireServer(buffer.fromstring("\\002"))
+            remote:FireServer(buffer.fromstring("\002"))
         end)
         if not ok then
             Lift.NextFloorBusy = false
