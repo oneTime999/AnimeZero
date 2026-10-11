@@ -124,18 +124,21 @@ return function(ctx)
     end
 
     local function bumpAndSettle()
-        local _, root = F.character()
-        if not root then return end
+        local character, root = F.character()
+        if not character or not root then return end
 
         F.cancelTravel()
         F.releaseHold()
-        local base = groundCFrameAt(root.Position, nil, Player.Character, F.enemyFolder())
+        local base = groundCFrameAt(root.Position, nil, character, F.enemyFolder())
             or root.CFrame
         F.setPosition(base + Vector3.new(0, FLOOR_BUMP_HEIGHT, 0), 0, false)
         task.wait(FLOOR_BUMP_TIME)
 
-        if Lift.Enabled and S.Alive then
-            settleOnGround()
+        -- Never move a newly respawned character back to the previous character's location.
+        if Lift.Enabled and S.Alive and Player.Character == character then
+            if not settleOnGround() then
+                F.setPosition(base, 0.5, true)
+            end
         end
     end
 
