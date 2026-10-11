@@ -1,6 +1,49 @@
 return function(ctx)
     local S, Player, Webhooks, Fluent = ctx.S, ctx.Player, ctx.Webhooks, ctx.Fluent
     local HttpService = game:GetService("HttpService")
+    local Env = (getgenv and getgenv()) or _G
+
+    -- Only one live match observer per client. Old observers cannot enqueue
+    -- more Discord messages after a hub reload.
+    local oldTracker = Env.SlowHubWebhookTracker
+    if type(oldTracker) == "table" then oldTracker.Active = false end
+    local tracker = {Active = true}
+    Env.SlowHubWebhookTracker = tracker
+
+    -- Shared across hub reloads, including an in-flight previous observer.
+    local deliveryGate = Env.SlowHubWebhookDeliveryGate
+    if type(deliveryGate) ~= "table" then
+        deliveryGate = {Sent = {}, LastAt = -math.huge, LastUrl = ""}
+        Env.SlowHubWebhookDeliveryGate = deliveryGate
+    end
+    if type(deliveryGate.Sent) ~= "table" then deliveryGate.Sent = {} end
+    local function claimDelivery(report)
+        if not tracker.Active or not S.Alive then return false end
+        local now = os.clock()
+        local roundKey = report.RoundKey
+        local stableRound = roundKey ~= nil and tostring(roundKey) ~= ""
+        local fingerprint = stableRound
+            and ("round:" .. tostring(roundKey))
+            or ("result:" .. tostring(report.Signature or "unknown"))
+        local id = tostring(Player.UserId) .. "|" .. Config.Url .. "|" .. fingerprint
+        local lifetime = stableRound and 3600 or 20
+        local previous = deliveryGate.Sent[id]
+        if previous and now - previous < lifetime then return false end
+        -- Guard the brief overlap between an old UI observer and a new
+        -- RunStore observer, even when their report signatures differ.
+        if deliveryGate.LastUrl == Config.Url
+            and now - (deliveryGate.LastAt or -math.huge) < 2 then
+            return false
+        end
+        deliveryGate.Sent[id] = now
+        deliveryGate.LastAt = now
+        deliveryGate.LastUrl = Config.Url
+        for key, recorded in pairs(deliveryGate.Sent) do
+            if now - recorded > 3600 then deliveryGate.Sent[key] = nil end
+        end
+        return true
+    end
+
     local Config = {
         Enabled = false,
         Url = "",
@@ -401,10 +444,14 @@ return function(ctx)
     })
 
     Webhooks:AddSection("Notifications")
+    local lastTestAt = -math.huge
     Webhooks:AddButton({
         Title = "Test Webhook Notifications",
         Description = "Sends a test notification",
         Callback = function()
+            local now = os.clock()
+            if now - lastTestAt < 5 then return end
+            lastTestAt = now
             task.spawn(function()
                 local success, message = send(testReport(), true)
                 Fluent:Notify({
@@ -419,7 +466,9 @@ return function(ctx)
         end
     })
 
-    local lastRecordedAt = -math.huge
+    local roundCaptured = false
+    local activeSince = nil
+    local guiClosedAt = nil
     local terminalIdentity = nil
     local terminalSince = 0
     local terminalProcessed = false
@@ -430,15 +479,18 @@ return function(ctx)
     local lastWarnAt = -math.huge
 
     local function finishCapture(report)
-        if not report then return end
-        local now = os.clock()
-        -- Prevent a GUI fallback and runStore snapshot from counting twice.
-        if now - lastRecordedAt < 4 then return end
-
-        lastRecordedAt = now
+        if not report or roundCaptured or not tracker.Active then return end
+        -- Record at most once per genuine match lifecycle, not once per
+        -- RunStore identity change or 4-second period.
+        roundCaptured = true
         recordSession(report)
         if Config.Enabled and Config.Url ~= "" then
             task.spawn(function()
+                if not tracker.Active or not S.Alive or Fluent.Unloaded then return end
+                if not claimDelivery(report) then
+                    warn("[Slow Hub] Duplicate match webhook suppressed")
+                    return
+                end
                 local success, message = send(report, false)
                 if success ~= true then
                     warn("[Slow Hub] Match webhook: " .. tostring(message))
@@ -467,15 +519,33 @@ return function(ctx)
         end
         sourcePhase = phase or "unavailable"
 
-        if sourcePhase == "active" then
-            terminalIdentity = nil
-            terminalSince = 0
-            terminalProcessed = false
-        elseif sourcePhase == "finished" and report then
+        -- Detect a REAL new round: stable active state with the result
+        -- screen closed. Late updates to an already-finished RunStore must
+        -- never reset the notification latch.
+        local gui = Player:FindFirstChildOfClass("PlayerGui")
+        local screen = gui and gui:FindFirstChild("EndScreen")
+        local isOpen = screen and screen:IsA("ScreenGui") and screen.Enabled
+        if sourcePhase == "active" and not isOpen then
+            activeSince = activeSince or now
+            if now - activeSince >= 0.7 then
+                if roundCaptured or terminalProcessed or terminalIdentity then
+                    roundCaptured = false
+                    terminalProcessed = false
+                    terminalIdentity = nil
+                    terminalSince = 0
+                    guiAlreadyReported = false
+                end
+            end
+        else
+            activeSince = nil
+        end
+
+        if sourcePhase == "finished" and report then
             if terminalIdentity ~= identity then
                 terminalIdentity = identity
                 terminalSince = now
-                terminalProcessed = false
+                -- Do not reset terminalProcessed just because one of the
+                -- reward atoms changed after the match ended.
             end
             if not terminalProcessed and now - terminalSince >= 0.35 then
                 terminalProcessed = true
@@ -485,11 +555,14 @@ return function(ctx)
 
         -- UI fallback is used only if runStore is inaccessible.
         -- It does not attempt to invent item rewards.
-        local gui = Player:FindFirstChildOfClass("PlayerGui")
-        local screen = gui and gui:FindFirstChild("EndScreen")
-        local isOpen = screen and screen:IsA("ScreenGui") and screen.Enabled
         if isOpen then
             if guiOpenedAt == 0 then
+                -- With no RunStore, a result GUI reopened after being closed
+                -- is the available evidence for another completed round.
+                if sourcePhase == "unavailable" and guiClosedAt
+                    and now - guiClosedAt >= 1 then
+                    roundCaptured = false
+                end
                 guiOpenedAt = now
                 guiAlreadyReported = false
                 lastGUIReport = nil
@@ -506,6 +579,7 @@ return function(ctx)
                 end
             end
         else
+            if guiOpenedAt > 0 then guiClosedAt = now end
             if guiOpenedAt > 0 and lastGUIReport
                 and not guiAlreadyReported
                 and sourcePhase == "unavailable" then
@@ -530,7 +604,7 @@ return function(ctx)
     end
 
     task.spawn(function()
-        while S.Alive and not Fluent.Unloaded do
+        while S.Alive and tracker.Active and not Fluent.Unloaded do
             local ok, err = pcall(observe)
             if not ok and os.clock() - lastWarnAt > 20 then
                 lastWarnAt = os.clock()
