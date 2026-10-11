@@ -468,6 +468,7 @@ return function(ctx)
     })
 
     local roundCaptured = false
+    local lastCaptureSource = nil
     local activeSince = nil
     local guiClosedAt = nil
     local terminalIdentity = nil
@@ -484,6 +485,7 @@ return function(ctx)
         -- Record at most once per genuine match lifecycle, not once per
         -- RunStore identity change or 4-second period.
         roundCaptured = true
+        lastCaptureSource = report.Source
         recordSession(report)
         if Config.Enabled and Config.Url ~= "" then
             task.spawn(function()
@@ -560,8 +562,12 @@ return function(ctx)
             if guiOpenedAt == 0 then
                 -- With no RunStore, a result GUI reopened after being closed
                 -- is the available evidence for another completed round.
+                -- A RunStore notification can precede its result GUI.
+                -- That same GUI must not count as a second match.
                 if sourcePhase == "unavailable" and guiClosedAt
-                    and now - guiClosedAt >= 1 then
+                    and now - guiClosedAt >= 1
+                    and (lastCaptureSource == "GUI"
+                        or terminalIdentity == nil) then
                     roundCaptured = false
                 end
                 guiOpenedAt = now
