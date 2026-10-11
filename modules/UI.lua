@@ -288,6 +288,37 @@ return function(ctx)
         end
     })
 
+    -- Automatically enable Lift Auto Farm only in its confirmed match place.
+    task.spawn(function()
+        if game.GameId ~= 10512942223 or game.PlaceId ~= 109151342576374 then
+            return
+        end
+
+        local deadline = os.clock() + 30
+        repeat
+            if not S.Alive or Fluent.Unloaded then return end
+            local world = WS:FindFirstChild("World")
+            local markers = world and world:FindFirstChild("Markers")
+            local lift = markers and markers:FindFirstChild("Lift")
+            local prompt = lift and lift:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if prompt and liftToggle then
+                task.wait(1)
+                if not S.Alive or Fluent.Unloaded then return end
+                if not liftToggle.Value then
+                    liftToggle:SetValue(true)
+                end
+                return
+            end
+            task.wait(0.5)
+        until os.clock() >= deadline
+
+        Fluent:Notify({
+            Title = "Lift Auto Farm",
+            Content = "The Lift prompt was not detected. Enable the farm manually when the mode is ready.",
+            Duration = 6
+        })
+    end)
+
     Combat:AddSection("Combat Automation")
 
     Combat:AddToggle("V11_M1", {
