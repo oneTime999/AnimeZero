@@ -3,6 +3,7 @@ return function(ctx)
     local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
     local Zzzz = ctx.ZzzzWorld
+    local Lift = ctx.Lift
     local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
     local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
@@ -24,7 +25,7 @@ return function(ctx)
     local observedCharacter = nil
 
     local function queueFarmRecovery(reason)
-        if not S.Alive or not (S.Enabled or Raid.Enabled or Zzzz.Enabled) then return end
+        if not S.Alive or not (S.Enabled or Raid.Enabled or Zzzz.Enabled or Lift.Enabled) then return end
         if S.Enabled then
             pendingRespawnAt = os.clock()
             pendingReason = reason
@@ -39,6 +40,10 @@ return function(ctx)
             Raid.BossEngaged = false
             Raid.BossGoneAt = nil
             Raid.Status = "Waiting for respawn: " .. reason
+        end
+        if Lift.Enabled then
+            Lift.Target = nil
+            Lift.Status = "Waiting for respawn"
         end
         if Zzzz.Enabled then
             Zzzz.Target = nil
@@ -88,6 +93,8 @@ return function(ctx)
         Raid.Target = nil
         Zzzz.Enabled = false
         Zzzz.Target = nil
+        Lift.Enabled = false
+        Lift.Target = nil
         if S.Enabled and S.Phase == "BREAK_RUBBLE" and S.RubbleRef then
             local savedNoclip = C.Noclip
             C.Noclip = false
@@ -111,7 +118,7 @@ return function(ctx)
 
     local lastTravelErrorAt = -math.huge
     S.holdConn = RunService.Heartbeat:Connect(function()
-        if S.Alive and S.Enabled and allowed("Story") then
+        if S.Alive and ((S.Enabled and allowed("Story")) or Lift.Enabled) then
             local ok, err = pcall(F.updateTravel)
             if not ok then
                 F.cancelTravel()
@@ -124,7 +131,7 @@ return function(ctx)
         if not S.Alive or not S.HoldCF or S.Travel
             or not ((S.Enabled and allowed("Story"))
                 or (Raid.Enabled and allowed("Raids"))
-                or (Zzzz.Enabled and allowed("Zzz"))) then return end
+                or (Zzzz.Enabled and allowed("Zzz")) or Lift.Enabled) then return end
         local cf = S.HoldCF
         local char, root = F.character()
         if not char or not root then return end
@@ -143,8 +150,8 @@ return function(ctx)
         if S.Alive and C.Noclip
             and ((S.Enabled and allowed("Story"))
                 or (Raid.Enabled and allowed("Raids"))
-                or (Zzzz.Enabled and allowed("Zzz")))
-            and (Raid.Enabled or Zzzz.Enabled or S.Phase ~= "COMPLETED" or not S.FinalRestored) then
+                or (Zzzz.Enabled and allowed("Zzz")) or Lift.Enabled)
+            and (Raid.Enabled or Zzzz.Enabled or Lift.Enabled or S.Phase ~= "COMPLETED" or not S.FinalRestored) then
             pcall(F.applyNoclip)
         end
     end)
@@ -165,6 +172,8 @@ return function(ctx)
             Raid.Status = "Retrying Raid after an error"
         elseif mode == "Zzz" then
             Zzzz.Status = "Retrying Zzz World after an error"
+        elseif mode == "Lift" then
+            Lift.Status = "Retrying Lift after an error"
         end
         if now - (lastStepErrorAt[mode] or -math.huge) >= 12 then
             lastStepErrorAt[mode] = now
@@ -196,6 +205,9 @@ return function(ctx)
             end
             if Zzzz.Enabled and allowed("Zzz") then
                 safeStep("Zzz", F.zzzzStep)
+            end
+            if Lift.Enabled then
+                safeStep("Lift", F.liftStep)
             end
             task.wait(0.05)
         end
