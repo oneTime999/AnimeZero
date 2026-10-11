@@ -83,8 +83,11 @@ return function(ctx)
             PlaceId = game.PlaceId,
             ModeAttribute = modeValue()
         }
-        if candidate.PlaceId == 114574503491412 then
-            return false, "This is the main lobby. Enter the intended match first"
+        if candidate.PlaceId == 114574503491412
+            and candidate.ModeAttribute == "" then
+            -- Some games reuse the main place in reserved match servers.
+            -- Allow that case only if the server exposes an exact mode.
+            return false, "Main Place has no mode identifier; copy diagnostics first"
         end
         for other, entry in pairs(records) do
             if other ~= mode and entry.PlaceId == candidate.PlaceId then
