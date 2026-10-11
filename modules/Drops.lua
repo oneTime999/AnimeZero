@@ -99,7 +99,7 @@ return function(ctx)
         -- The game allocates drop IDs from 0 through 255. Query keys
         -- directly as a fallback when the observer or snapshot is delayed.
         local ok, all = pcall(function() return dropState:getAll() end)
-        if ok and type(all) == "table" then
+        if ok and type(all) == "table" and next(all) ~= nil then
             local active = {}
             for rawId, drop in pairs(all) do
                 local id = validId(rawId)
@@ -136,8 +136,9 @@ return function(ctx)
     end
 
     local function currentlyIdle()
-        if S.Travel or S.Phase == "FINAL_TELEPORT"
-            or S.Phase == "COMPLETED" then return false end
+        if S.Travel or (S.Enabled
+            and (S.Phase == "FINAL_TELEPORT"
+                or S.Phase == "COMPLETED")) then return false end
         if S.Enabled and S.Target then return false end
         if ctx.Raid.Enabled and ctx.Raid.Target then return false end
         if ctx.ZzzzWorld.Enabled and ctx.ZzzzWorld.Target then return false end
