@@ -6,6 +6,7 @@ return function(ctx)
     local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
     local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
+    local Guard = assert(ctx.GameGuard, "GameGuard module is required")
 
     local Fluent = loadstring(game:HttpGet(
         "https://raw.githubusercontent.com/oneTime999/PcdFnlBossUI/refs/heads/main/main.lua"
@@ -33,6 +34,47 @@ return function(ctx)
     local storyToggle
     local raidToggle
     local zzzzToggle
+
+    local function denyActivation(mode, toggle)
+        if Guard.Allowed(mode) then return false end
+        local message = Guard.Reason(mode)
+        Fluent:Notify({
+            Title = "Wrong Place / Mode",
+            Content = message,
+            Duration = 7
+        })
+        task.defer(function()
+            if toggle and toggle.Value then toggle:SetValue(false) end
+        end)
+        return true
+    end
+
+    local invalidSince = {}
+    ctx.EnforceFarmLocation = function()
+        for _, entry in ipairs({
+            {Key = "Story", State = S, Toggle = storyToggle},
+            {Key = "Raids", State = Raid, Toggle = raidToggle},
+            {Key = "Zzz", State = Zzzz, Toggle = zzzzToggle}
+        }) do
+            if entry.State.Enabled and not Guard.Allowed(entry.Key) then
+                invalidSince[entry.Key] = invalidSince[entry.Key] or os.clock()
+                if os.clock() - invalidSince[entry.Key] >= 3 then
+                    entry.State.Enabled = false
+                    if entry.Toggle and entry.Toggle.Value then
+                        entry.Toggle:SetValue(false)
+                    end
+                    invalidSince[entry.Key] = nil
+                    Fluent:Notify({
+                        Title = "Farm Stopped",
+                        Content = Guard.Reason(entry.Key),
+                        Duration = 7
+                    })
+                end
+            else
+                invalidSince[entry.Key] = nil
+            end
+        end
+    end
 
     local function switchToMode(selected)
         ctx.ActiveFarmMode = selected
@@ -83,6 +125,7 @@ return function(ctx)
         Description = "Automatically farms Story",
         Default = false,
         Callback = function(value)
+            if value and denyActivation("Story", storyToggle) then return end
             if value then switchToMode("Story") end
             S.Enabled = value
             if value then
@@ -126,6 +169,7 @@ return function(ctx)
         Description = "Automatically farms Shadow Monarch Raid",
         Default = false,
         Callback = function(value)
+            if value and denyActivation("Raids", raidToggle) then return end
             if value then switchToMode("Raids") end
             Raid.Enabled = value
             if not value and ctx.ActiveFarmMode == "Raids" then
@@ -163,6 +207,7 @@ return function(ctx)
         Description = "Automatically farms Zzz World",
         Default = false,
         Callback = function(value)
+            if value and denyActivation("Zzz", zzzzToggle) then return end
             if value then switchToMode("Zzz") end
             Zzzz.Enabled = value
             Zzzz.Target = nil
@@ -229,6 +274,60 @@ return function(ctx)
             Callback = function(value) skill.Delay = value end
         })
     end
+
+    Settings:AddSection("Place & Mode Registration")
+    local placeStatus = Settings:AddParagraph({
+        Title = "Current Place",
+        Content = "Place: " .. tostring(game.PlaceId) .. " | " .. Guard.Status()
+    })
+    Settings:AddParagraph({
+        Title = "Important",
+        Content = "Enter the correct match first, then register its mode once. " ..
+            "A registered farm only runs in that Place and workspace Mode."
+    })
+
+    for _, entry in ipairs({
+        {Key = "Story", Title = "Register HxH Story Here"},
+        {Key = "Raids", Title = "Register Shadow Monarch Here"},
+        {Key = "Zzz", Title = "Register Zzz World Here"}
+    }) do
+        Settings:AddButton({
+            Title = entry.Title,
+            Description = "Only press while inside this exact match",
+            Callback = function()
+                local ok, message = Guard.Register(entry.Key)
+                Fluent:Notify({
+                    Title = ok and "Place Registered" or "Registration Refused",
+                    Content = message,
+                    Duration = 7
+                })
+            end
+        })
+    end
+
+    Settings:AddButton({
+        Title = "Copy Place Diagnostics",
+        Description = "Copy PlaceId, Universe ID and server mode attributes",
+        Callback = function()
+            local info = Guard.Diagnostics()
+            local copy = setclipboard or toclipboard
+            if type(copy) ~= "function" then
+                warn("[Slow Hub] Place diagnostics:\\n" .. info)
+                Fluent:Notify({
+                    Title = "Place Diagnostics",
+                    Content = "Clipboard unavailable; see executor console",
+                    Duration = 6
+                })
+                return
+            end
+            local ok = pcall(copy, info)
+            Fluent:Notify({
+                Title = "Place Diagnostics",
+                Content = ok and "Place details copied" or "Copy failed",
+                Duration = 6
+            })
+        end
+    })
 
     Settings:AddSection("Farm Automation")
 
@@ -334,6 +433,8 @@ return function(ctx)
             local data = ctx.FarmMonitor
             if data then
                 local ok, err = pcall(function()
+                    display(placeStatus, "place",
+                        "Place: " .. tostring(game.PlaceId) .. " | " .. Guard.Status())
                     display(statusLine, "status",
                         tostring(data.Mode or "Off") .. " - " .. tostring(data.State or "Idle"))
                     display(activityLine, "activity",
