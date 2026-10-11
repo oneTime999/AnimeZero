@@ -168,5 +168,18 @@ return {
     C = C, S = S, Raid = Raid, ZzzzWorld = ZzzzWorld, Skill = Skill,
     RubbleCoordinates = RubbleCoordinates, WaveCoordinates = WaveCoordinates,
     LastBorder = LastBorder, LastEnemyWave = LastEnemyWave,
-    Functions = {}
+    Functions = {},
+    FarmMonitor = {
+        Mode = "Off",
+        State = "Idle",
+        NPCs = 0,
+        LastDamageAt = nil,
+        LastSpawnAt = nil,
+        LastError = "None",
+        LastErrorAt = nil,
+        RecoveryStage = 0,
+        Recoveries = 0,
+        LastReason = "None",
+        LastActionAt = nil
+    }
 }
