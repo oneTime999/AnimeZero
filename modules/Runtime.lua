@@ -402,10 +402,13 @@ return function(ctx)
 
                 local finished
                 if replayMode == "Zzz" then
-                    local status
+                    local status, travelStatus
                     if ctx.ReadMatchStatus then
-                        local ok, value = pcall(ctx.ReadMatchStatus)
-                        if ok then status = value end
+                        local ok, value, _, travel = pcall(ctx.ReadMatchStatus)
+                        if ok then
+                            status = value
+                            travelStatus = travel
+                        end
                     end
 
                     -- The game sets EndScreenActive when the local
@@ -421,6 +424,13 @@ return function(ctx)
                         local resultVisible = endActive or screenEnabled
                         local confirmed = terminal or resultVisible
                             or (status == nil and matchPhase == "finished")
+                        -- The real Retry button is disabled until the
+                        -- server reports travelStatus == "idle". Sending
+                        -- earlier can waste every replay attempt.
+                        if status ~= nil and travelStatus ~= nil
+                            and travelStatus ~= "idle" then
+                            confirmed = false
+                        end
                         if confirmed then
                             infiniteFinishedSince = infiniteFinishedSince or now
                             finished = now - infiniteFinishedSince >= 1
