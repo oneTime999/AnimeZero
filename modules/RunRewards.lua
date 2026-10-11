@@ -190,9 +190,14 @@ return function(ctx)
         local win = outcome == "victory" or outcome == "won"
             or outcome == "success" or outcome == "completed"
         local finishedAt = get(state.finishedAt)
-        local roundKey = finishedAt ~= nil and tostring(finishedAt) or nil
-        if roundKey == "" or roundKey == "0" or roundKey == "nil" then
-            roundKey = nil
+        -- Only a real completion timestamp can identify a unique match.
+        -- false, 0 and placeholder atoms must not suppress later rounds.
+        local roundKey = nil
+        if type(finishedAt) == "number" and finishedAt > 0 then
+            roundKey = tostring(finishedAt)
+        elseif type(finishedAt) == "string"
+            and tonumber(finishedAt) and tonumber(finishedAt) > 0 then
+            roundKey = finishedAt
         end
         local signature = table.concat({
             tostring(participant), tostring(finishedAt),
