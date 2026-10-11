@@ -37,7 +37,7 @@ end
 local ctx = loadModule("Core")
 local modules = {
     "GameGuard", "Enemies", "Movement", "Skills", "Rubble", "Story", "Raids",
-    "ZzzzWorld", "UI", "RunRewards", "Webhook", "Profiles", "Runtime", "Recovery", "Developer"
+    "ZzzzWorld", "Lift", "UI", "RunRewards", "Webhook", "Profiles", "Runtime", "Recovery", "Developer"
 }
 
 -- Nonessential integrations should never stop all three farms from starting.
