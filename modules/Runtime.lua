@@ -451,9 +451,10 @@ return function(ctx)
                     holdingResult = ok and value == true
                 end
 
-                local interval = replayMode == "Zzz" and 8 or 3
+                -- Keep retrying Zzz World until the server reports a new active round.
+                -- A short interval handles delayed/laggy clients without a tight spam loop.
+                local interval = replayMode == "Zzz" and 2 or 3
                 if finished and not holdingResult
-                    and (replayMode ~= "Zzz" or infiniteAttempts < 3)
                     and now - lastReplayRequestAt >= interval then
                     local remote = RS:FindFirstChild("endAction")
                     if remote and remote:IsA("RemoteEvent") then
@@ -464,11 +465,10 @@ return function(ctx)
                         if ok then
                             if replayMode == "Zzz" then
                                 infiniteAttempts += 1
-                                Zzzz.Status = "Replay requested ("
-                                    .. tostring(infiniteAttempts) .. "/3)"
-                                if infiniteAttempts == 3 then
-                                    warn("[Slow Hub] Infinite replay sent 3 times "
-                                        .. "without a new active round")
+                                Zzzz.Status = "Retry requested (" 
+                                    .. tostring(infiniteAttempts) .. "); waiting for next round"
+                                if infiniteAttempts % 10 == 0 then
+                                    warn("[Slow Hub] Zzz World is still waiting for a new round; retrying")
                                 end
                             end
                         elseif now - lastReplayWarnAt >= 12 then
