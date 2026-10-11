@@ -456,11 +456,14 @@ return function(ctx)
                 local interval = replayMode == "Zzz" and 2 or 3
                 if finished and not holdingResult
                     and now - lastReplayRequestAt >= interval then
-                    local remote = RS:FindFirstChild("endAction")
+                    -- The game's Retry event is nested under ReplicatedStorage.runPackets.
+                    -- Resolve the actual path instead of looking only at ReplicatedStorage's root.
+                    local packets = RS:FindFirstChild("runPackets")
+                    local remote = packets and packets:FindFirstChild("endAction")
                     if remote and remote:IsA("RemoteEvent") then
                         lastReplayRequestAt = now
                         local ok, err = pcall(function()
-                            remote:FireServer(buffer.fromstring("\001"))
+                            remote:FireServer(1)
                         end)
                         if ok then
                             if replayMode == "Zzz" then
