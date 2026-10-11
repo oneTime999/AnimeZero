@@ -61,6 +61,8 @@ return function(ctx)
         end
 
         if target then
+            if S.Travel then F.cancelTravel() end
+            F.releaseHold()
             Lift.Target = target
             Lift.NextPromptAt = 0
             local positioned = F.enemyPosition(target)
