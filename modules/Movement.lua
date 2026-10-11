@@ -271,15 +271,24 @@ return function(ctx)
     end
 
     function F.applyNoclip()
-        if not (S.Enabled or Raid.Enabled or ctx.ZzzzWorld.Enabled) or not C.Noclip then return end
+        local Lift = ctx.Lift
+        if not (S.Enabled or Raid.Enabled or ctx.ZzzzWorld.Enabled or (Lift and Lift.Enabled))
+            or not C.Noclip then
+            return
+        end
+
         local char = Player.Character
         if not char then return end
+
+        -- Reapply every physics step: some games reset CanCollide after movement/respawn.
         for _, part in ipairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
                 if S.Collisions[part] == nil then
                     S.Collisions[part] = part.CanCollide
                 end
-                if part.CanCollide then part.CanCollide = false end
+                if part.CanCollide then
+                    part.CanCollide = false
+                end
             end
         end
     end
