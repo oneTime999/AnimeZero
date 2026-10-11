@@ -66,41 +66,5 @@ return function(ctx)
         return mode and MODES[mode].Name or "Lobby / Unsupported mode"
     end
 
-    function Guard.Status()
-        return Guard.ModeName()
-    end
-
-    function Guard.Diagnostics()
-        if not Guard.IsDeveloper() then
-            return "Developer diagnostics restricted"
-        end
-        local gui = Player:FindFirstChildOfClass("PlayerGui")
-        local lines = {
-            "Slow Hub | Anime Zero diagnostics",
-            "Universe ID: " .. tostring(game.GameId),
-            "Place ID: " .. tostring(game.PlaceId),
-            "Workspace.Mode: " .. (currentMode() ~= "" and currentMode() or "(missing)"),
-            "Detected mode: " .. Guard.ModeName(),
-            "Story allowed: " .. tostring(Guard.Allowed("Story")),
-            "Shadow Monarch allowed: " .. tostring(Guard.Allowed("Raids")),
-            "Zzz World allowed: " .. tostring(Guard.Allowed("Zzz"))
-        }
-        for _, name in ipairs({"RunManage", "InfiniteManage", "BossBar", "EndScreen"}) do
-            local object = gui and gui:FindFirstChild(name)
-            table.insert(lines, "GUI " .. name .. ": "
-                .. (object and (object:IsA("ScreenGui")
-                    and object.Enabled and "enabled" or "present") or "missing"))
-        end
-        local active = ctx.FarmMonitor
-        if active then
-            table.insert(lines, "Farm: " .. tostring(active.Mode))
-            table.insert(lines, "State: " .. tostring(active.State))
-            table.insert(lines, "Detected NPCs: " .. tostring(active.NPCs))
-            table.insert(lines, "Recoveries: " .. tostring(active.Recoveries))
-            table.insert(lines, "Last error: " .. tostring(active.LastError))
-        end
-        return table.concat(lines, "\n")
-    end
-
     ctx.GameGuard = Guard
 end
