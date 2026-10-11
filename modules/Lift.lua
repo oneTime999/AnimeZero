@@ -38,109 +38,27 @@ return function(ctx)
         return target, folder
     end
 
-    local function groundCFrameAt(desiredPosition, targetPosition, character, enemies)
-        local _, root = F.character()
-        if not root then return nil end
-
-        character = character or Player.Character
-        enemies = enemies or F.enemyFolder()
-
-        local excluded = {}
-        if character then table.insert(excluded, character) end
-        if enemies then table.insert(excluded, enemies) end
-
-        local params = RaycastParams.new()
-        params.FilterType = Enum.RaycastFilterType.Exclude
-        params.FilterDescendantsInstances = excluded
-        params.IgnoreWater = true
-
-        local originY = math.max(desiredPosition.Y, root.Position.Y)
-        if targetPosition then originY = math.max(originY, targetPosition.Y) end
-        local origin = Vector3.new(desiredPosition.X, originY + 40, desiredPosition.Z)
-        local hit = WS:Raycast(origin, Vector3.new(0, -300, 0), params)
-        if not hit then return nil end
-
+    local function positionBelowTarget(target)
+        local character = Player.Character
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        local hipHeight = humanoid and humanoid.HipHeight or 2
-        local rootHalfHeight = root.Size.Y * 0.5
-        local position = Vector3.new(
-            desiredPosition.X,
-            hit.Position.Y + hipHeight + rootHalfHeight,
-            desiredPosition.Z
-        )
-
-        local lookAt
-        if targetPosition then
-            lookAt = Vector3.new(targetPosition.X, position.Y, targetPosition.Z)
-        else
-            local forward = root.CFrame.LookVector
-            lookAt = position + Vector3.new(forward.X, 0, forward.Z)
-        end
-        if (lookAt - position).Magnitude < 0.05 then
-            lookAt = position + Vector3.new(0, 0, -1)
-        end
-        return CFrame.lookAt(position, lookAt)
-    end
-
-    local function positionOnGround(target, enemies)
-        local character, root = F.character()
-        local targetPart = F.partOf(target)
-        if not character or not root or not targetPart then return false end
-
-        -- Stay close to the enemy, but keep the character on the floor.
-        local away = Vector3.new(
-            root.Position.X - targetPart.Position.X,
-            0,
-            root.Position.Z - targetPart.Position.Z
-        )
-        if away.Magnitude < 0.1 then
-            away = Vector3.new(-targetPart.CFrame.LookVector.X, 0, -targetPart.CFrame.LookVector.Z)
-        end
-        if away.Magnitude < 0.1 then away = Vector3.new(1, 0, 0) end
-        away = away.Unit
-
-        local distance = math.min(Lift.GroundDistance or GROUND_DISTANCE, 3.5)
-        local desired = targetPart.Position + away * distance
-        local groundCF = groundCFrameAt(desired, targetPart.Position, character, enemies)
-        if not groundCF then
-            Lift.Status = "Searching for safe ground"
-            return false
-        end
-
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
         if humanoid then
-            if Lift.PreviousAutoRotate == nil then
-                Lift.PreviousAutoRotate = humanoid.AutoRotate
-            end
+            if Lift.PreviousAutoRotate == nil then Lift.PreviousAutoRotate = humanoid.AutoRotate end
             humanoid.AutoRotate = false
         end
-
-        -- Rotate the character onto their back: face points upward, body lies horizontally.
-        local floorY = groundCF.Position.Y
-            - ((humanoid and humanoid.HipHeight) or 2)
-            - (root.Size.Y * 0.5)
-        local lyingPosition = Vector3.new(desired.X, floorY + math.max(root.Size.Z * 0.5, 1.25), desired.Z)
-        local lyingCF = CFrame.lookAt(
-            lyingPosition,
-            lyingPosition + Vector3.new(0, 1, 0),
-            Vector3.new(0, 0, 1)
-        )
-
-        F.cancelTravel()
-        local positioned = F.setPosition(lyingCF, 0.4, true)
-        if positioned then
-            Lift.GroundPosition = lyingCF
-        end
-        return positioned
+        -- Lift always attacks from below; the height offset is locked at zero.
+        local oldPosition, oldHeight = ctx.C.Position, ctx.C.Height
+        ctx.C.Position, ctx.C.Height = "Below", 0
+        local ok = F.enemyPosition(target)
+        ctx.C.Position, ctx.C.Height = oldPosition, oldHeight
+        return ok
     end
 
     local function settleOnGround()
         local character, root = F.character()
         if not character or not root then return false end
-        local groundCF = groundCFrameAt(root.Position, nil, character, F.enemyFolder())
-        if not groundCF then return false end
-        F.setPosition(groundCF, 0.5, true)
-        Lift.GroundPosition = groundCF
+        local goal = root.CFrame
+        F.setPosition(goal, 0.5, true)
+        Lift.GroundPosition = goal
         return true
     end
 
@@ -150,8 +68,7 @@ return function(ctx)
 
         F.cancelTravel()
         F.releaseHold()
-        local base = groundCFrameAt(root.Position, nil, character, F.enemyFolder())
-            or root.CFrame
+        local base = root.CFrame
         F.setPosition(base + Vector3.new(0, FLOOR_BUMP_HEIGHT, 0), 0, false)
         task.wait(FLOOR_BUMP_TIME)
 
@@ -256,6 +173,7 @@ return function(ctx)
                     end
                 end)
             end
+            return activated
         else
             Lift.Status = "Waiting for next wave"
         end
@@ -293,8 +211,8 @@ return function(ctx)
             Lift.NextFloorBusy = false
             Lift.Target = target
 
-            if positionOnGround(target, enemies) and F.living(target) then
-                Lift.Status = "Ground combat: " .. target.Name
+            if positionBelowTarget(target) and F.living(target) then
+                Lift.Status = "Below-target combat: " .. target.Name
                 F.attackM1()
                 F.autoSkills()
             end
@@ -307,22 +225,33 @@ return function(ctx)
             return
         end
 
-        if Lift.AutoNextFloor and Lift.HadEnemies then
+        if Lift.HadEnemies then
             Lift.EmptySince = Lift.EmptySince or os.clock()
-            if os.clock() - Lift.EmptySince >= CLEAR_CONFIRM then
-                if Lift.NextFloorBusy or os.clock() < (Lift.NextFloorAt or 0) then
-                    fireNextFloor()
-                    return
-                end
-                if fireNextFloor() then return end
-            else
+            if os.clock() - Lift.EmptySince < CLEAR_CONFIRM then
                 Lift.Status = "Confirming floor clear"
                 return
             end
+
+            -- Reach and activate Interact before requesting the next floor.
+            local activated = fallbackToLift(lift, prompt)
+            if activated then
+                if Lift.AutoNextFloor then
+                    fireNextFloor()
+                else
+                    Lift.Status = "Lift Interact activated"
+                end
+                return
+            end
+            if Lift.AutoNextFloor and os.clock() >= (Lift.NextFloorAt or 0)
+                and not Lift.NextFloorBusy then
+                -- Give the prompt path a short chance to complete before remote fallback.
+                if os.clock() - (Lift.EmptySince or os.clock()) >= 4 then
+                    if fireNextFloor() then return end
+                end
+            end
+            return
         end
 
-        -- Keep the previous prompt path as a fallback if the remote is unavailable
-        -- or Auto Next Floor is turned off.
         fallbackToLift(lift, prompt)
     end
 end
