@@ -83,10 +83,11 @@ return function(ctx)
     end
 
     local function positionOnGround(target, enemies)
-        local _, root = F.character()
+        local character, root = F.character()
         local targetPart = F.partOf(target)
-        if not root or not targetPart then return false end
+        if not character or not root or not targetPart then return false end
 
+        -- Stay close to the enemy, but keep the character on the floor.
         local away = Vector3.new(
             root.Position.X - targetPart.Position.X,
             0,
@@ -98,17 +99,37 @@ return function(ctx)
         if away.Magnitude < 0.1 then away = Vector3.new(1, 0, 0) end
         away = away.Unit
 
-        local desired = targetPart.Position + away * (Lift.GroundDistance or GROUND_DISTANCE)
-        local groundCF = groundCFrameAt(desired, targetPart.Position, Player.Character, enemies)
+        local distance = math.min(Lift.GroundDistance or GROUND_DISTANCE, 3.5)
+        local desired = targetPart.Position + away * distance
+        local groundCF = groundCFrameAt(desired, targetPart.Position, character, enemies)
         if not groundCF then
             Lift.Status = "Searching for safe ground"
             return false
         end
 
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            if Lift.PreviousAutoRotate == nil then
+                Lift.PreviousAutoRotate = humanoid.AutoRotate
+            end
+            humanoid.AutoRotate = false
+        end
+
+        -- Rotate the character onto their back: face points upward, body lies horizontally.
+        local floorY = groundCF.Position.Y
+            - ((humanoid and humanoid.HipHeight) or 2)
+            - (root.Size.Y * 0.5)
+        local lyingPosition = Vector3.new(desired.X, floorY + math.max(root.Size.Z * 0.5, 1.25), desired.Z)
+        local lyingCF = CFrame.lookAt(
+            lyingPosition,
+            lyingPosition + Vector3.new(0, 1, 0),
+            Vector3.new(0, 0, 1)
+        )
+
         F.cancelTravel()
-        local positioned = F.setPosition(groundCF, 0.4, true)
+        local positioned = F.setPosition(lyingCF, 0.4, true)
         if positioned then
-            Lift.GroundPosition = groundCF
+            Lift.GroundPosition = lyingCF
         end
         return positioned
     end
@@ -241,7 +262,15 @@ return function(ctx)
     end
 
     function F.liftStep()
-        if not Lift.Enabled then return end
+        if not Lift.Enabled then
+            local character = Player.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            if humanoid and Lift.PreviousAutoRotate ~= nil then
+                humanoid.AutoRotate = Lift.PreviousAutoRotate
+                Lift.PreviousAutoRotate = nil
+            end
+            return
+        end
         local _, root = F.character()
         if not root then
             Lift.Target = nil
