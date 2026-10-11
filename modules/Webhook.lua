@@ -388,6 +388,7 @@ return function(ctx)
 
         local payload = {
             title = "Anime Zero - Match Results",
+            timestamp = report.Timestamp or DateTime.now():ToIsoDate(),
             color = options.Result
                 and (report.Win and 5763719 or 15548997) or 9807270,
             description = nil,
@@ -440,6 +441,7 @@ return function(ctx)
         -- RunStore identity change or 4-second period.
         roundCaptured = true
         lastCaptureSource = report.Source
+        report.Timestamp = DateTime.now():ToIsoDate()
         recordSession(report)
         if Config.Enabled and Config.Url ~= "" then
             task.spawn(function()
