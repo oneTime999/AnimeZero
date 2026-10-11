@@ -140,7 +140,8 @@ return function(ctx)
         local status = get(participant.status)
         if type(status) ~= "string" then return nil, nil end
         local completedAt = get(participant.finishedAt) or get(state.finishedAt)
-        return status:lower(), completedAt
+        local travelStatus = get(participant.travelStatus)
+        return status:lower(), completedAt, travelStatus
     end
 
     ctx.ReadMatchStore = function()
