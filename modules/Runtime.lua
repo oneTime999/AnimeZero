@@ -364,94 +364,110 @@ return function(ctx)
         end
     end)
 
-    -- Never issue endAction during live combat. The previous loop could
-    -- accidentally request a restart while enemies were still alive.
+    -- Matches use runPackets.endAction:fire(1) for Retry.
+    -- Infinite mode's participant status and EndScreenActive are more
+    -- reliable than waiting for all enemies to vanish or seeing 'active'
+    -- before the hub is enabled. A completed screen is sufficient.
     task.spawn(function()
         local lastReplayRequestAt = -math.huge
         local lastReplayMode = nil
-        local sawActiveZzz = false
-        local zzzFinishSince = nil
-        local zzzReplayAttempts = 0
+        local infiniteFinishedSince = nil
+        local infiniteAttempts = 0
+        local lastReplayWarnAt = -math.huge
+
         while S.Alive and not Fluent.Unloaded do
-            task.wait(1)
+            task.wait(0.5)
             local replayMode = (S.Enabled and allowed("Story")) and "Story"
                 or ((Zzzz.Enabled and allowed("Zzz")) and "Zzz" or nil)
             if replayMode ~= lastReplayMode then
                 lastReplayMode = replayMode
-                sawActiveZzz = false
-                zzzFinishSince = nil
-                zzzReplayAttempts = 0
                 lastReplayRequestAt = -math.huge
+                infiniteFinishedSince = nil
+                infiniteAttempts = 0
             end
+
             if S.Alive and replayMode and C.AutoReplay then
                 local now = os.clock()
-                local finished = S.Enabled and S.Phase == "COMPLETED"
-                    and now - (S.FinishAt or now) >= 2
+                local gui = Player:FindFirstChildOfClass("PlayerGui")
+                local screen = gui and gui:FindFirstChild("EndScreen")
+                local screenEnabled = screen and screen:IsA("ScreenGui")
+                    and screen.Enabled == true
+                local endActive = gui and gui:GetAttribute("EndScreenActive") == true
+
                 local matchPhase
                 if ctx.ReadMatchStore then
                     local ok, _, phase = pcall(ctx.ReadMatchStore)
                     if ok then matchPhase = phase end
                 end
+
+                local finished
                 if replayMode == "Zzz" then
-                    -- A run can finish before the server clears the enemy
-                    -- folder. Use its actual result state, not NPC cleanup.
-                    -- Seeing this mode active avoids replaying stale results.
-                    if matchPhase == "active" then
-                        sawActiveZzz = true
-                    elseif not sawActiveZzz and matchPhase ~= "finished" then
-                        -- RunStore might not expose an active participant in
-                        -- time. Existing combat is also proof of this run.
-                        local ok, enemiesExist = pcall(F.livingEnemyExists)
-                        if ok and enemiesExist then sawActiveZzz = true end
+                    local status
+                    if ctx.ReadMatchStatus then
+                        local ok, value = pcall(ctx.ReadMatchStatus)
+                        if ok then status = value end
                     end
-                    if matchPhase == "finished" and sawActiveZzz then
-                        zzzFinishSince = zzzFinishSince or now
-                        finished = now - zzzFinishSince >= 1
-                    else
-                        zzzFinishSince = nil
+
+                    -- The game sets EndScreenActive when the local
+                    -- participant changes from active to a terminal state.
+                    -- Exclude live combat regardless of transitional GUI.
+                    if status == "active" then
+                        infiniteFinishedSince = nil
+                        infiniteAttempts = 0
                         finished = false
+                    else
+                        local terminal = status ~= nil and status ~= "waiting"
+                            and status ~= "queued" and status ~= "active"
+                        local resultVisible = endActive or screenEnabled
+                        local confirmed = terminal or resultVisible
+                            or (status == nil and matchPhase == "finished")
+                        if confirmed then
+                            infiniteFinishedSince = infiniteFinishedSince or now
+                            finished = now - infiniteFinishedSince >= 1
+                        else
+                            infiniteFinishedSince = nil
+                            finished = false
+                        end
                     end
                 else
-                    finished = finished or matchPhase == "finished"
+                    finished = (S.Phase == "COMPLETED"
+                        and now - (S.FinishAt or now) >= 2)
+                        or matchPhase == "finished" or screenEnabled
                 end
-                local gui = Player:FindFirstChildOfClass("PlayerGui")
-                local endScreen = gui and gui:FindFirstChild("EndScreen")
-                local resultScreenVisible = endScreen
-                    and endScreen:IsA("ScreenGui") and endScreen.Enabled
-                finished = finished or resultScreenVisible
-                if replayMode == "Zzz"
-                    and matchPhase == "active" and not resultScreenVisible then
-                    -- The server confirmed that another round is underway.
-                    zzzReplayAttempts = 0
-                end
+
                 local holdingResult = false
                 if ctx.WebhookPauseReplay then
-                    local ok, blocked = pcall(ctx.WebhookPauseReplay)
-                    holdingResult = ok and blocked == true
+                    local ok, value = pcall(ctx.WebhookPauseReplay)
+                    holdingResult = ok and value == true
                 end
-                local replayDelay = replayMode == "Zzz" and 8 or 3
+
+                local interval = replayMode == "Zzz" and 8 or 3
                 if finished and not holdingResult
-                    and (replayMode ~= "Zzz" or zzzReplayAttempts < 3)
-                    and now - lastReplayRequestAt >= replayDelay then
+                    and (replayMode ~= "Zzz" or infiniteAttempts < 3)
+                    and now - lastReplayRequestAt >= interval then
                     local remote = RS:FindFirstChild("endAction")
                     if remote and remote:IsA("RemoteEvent") then
-                        local ok = pcall(function()
+                        lastReplayRequestAt = now
+                        local ok, err = pcall(function()
                             remote:FireServer(buffer.fromstring("\001"))
                         end)
                         if ok then
-                            lastReplayRequestAt = now
                             if replayMode == "Zzz" then
-                                -- FireServer confirms dispatch, not acceptance.
-                                -- Allow at most three attempts per finished
-                                -- run, reset when RunStore becomes active.
-                                zzzReplayAttempts += 1
-                                Zzzz.Status = "Auto Replay requested"
-                                if zzzReplayAttempts == 3 then
-                                    warn("[Slow Hub] Zzz replay not confirmed "
-                                        .. "after 3 attempts; waiting for new run")
+                                infiniteAttempts += 1
+                                Zzzz.Status = "Replay requested ("
+                                    .. tostring(infiniteAttempts) .. "/3)"
+                                if infiniteAttempts == 3 then
+                                    warn("[Slow Hub] Infinite replay sent 3 times "
+                                        .. "without a new active round")
                                 end
                             end
+                        elseif now - lastReplayWarnAt >= 12 then
+                            lastReplayWarnAt = now
+                            warn("[Slow Hub] Auto Replay error: " .. tostring(err))
                         end
+                    elseif now - lastReplayWarnAt >= 12 then
+                        lastReplayWarnAt = now
+                        warn("[Slow Hub] Missing endAction replay RemoteEvent")
                     end
                 end
             end
