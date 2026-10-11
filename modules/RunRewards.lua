@@ -189,8 +189,13 @@ return function(ctx)
         end
         local win = outcome == "victory" or outcome == "won"
             or outcome == "success" or outcome == "completed"
+        local finishedAt = get(state.finishedAt)
+        local roundKey = finishedAt ~= nil and tostring(finishedAt) or nil
+        if roundKey == "" or roundKey == "0" or roundKey == "nil" then
+            roundKey = nil
+        end
         local signature = table.concat({
-            tostring(participant), tostring(get(state.finishedAt)),
+            tostring(participant), tostring(finishedAt),
             tostring(status), tostring(earned), tostring(gems),
             tostring(rerolls), materialString
         }, "|")
@@ -198,6 +203,7 @@ return function(ctx)
             Win = win, Source = "RunStore",
             Difficulty = getDifficulty(),
             Rewards = rewards, Signature = signature,
+            RoundKey = roundKey,
             RawEXP = value("xp"), RawGems = gems,
             Stats = {
                 ["Play Time"] = timeText(value("elapsed")),
