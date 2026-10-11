@@ -56,7 +56,8 @@ return function(ctx)
         for _, entry in ipairs({
             {Key = "Story", State = S, Toggle = storyToggle},
             {Key = "Raids", State = Raid, Toggle = raidToggle},
-            {Key = "Zzz", State = Zzzz, Toggle = zzzzToggle}
+            {Key = "Zzz", State = Zzzz, Toggle = zzzzToggle},
+            {Key = "Lift", State = Lift, Toggle = liftToggle}
         }) do
             if entry.State.Enabled and not Guard.Allowed(entry.Key) then
                 invalidSince[entry.Key] = invalidSince[entry.Key] or os.clock()
@@ -124,6 +125,7 @@ return function(ctx)
         if selected ~= "Story" and selected ~= "Raids" and selected ~= "Zzz" and selected ~= "Lift" then
             selected = S.Enabled and "Story"
                 or Raid.Enabled and "Raids"
+                or Lift.Enabled and "Lift"
                 or "Zzz"
         end
         switchToMode(selected)
@@ -251,6 +253,7 @@ return function(ctx)
         Description = "Automatically clears each wave, tweens to the Lift, and activates its ProximityPrompt to advance.",
         Default = false,
         Callback = function(value)
+            if value and denyActivation("Lift", liftToggle) then return end
             if value then
                 local world = WS:FindFirstChild("World")
                 local markers = world and world:FindFirstChild("Markers")
