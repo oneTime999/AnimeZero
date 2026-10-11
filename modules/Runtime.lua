@@ -159,6 +159,10 @@ return function(ctx)
         end
         if now - (lastStepErrorAt[mode] or -math.huge) >= 12 then
             lastStepErrorAt[mode] = now
+            if ctx.FarmMonitor then
+                ctx.FarmMonitor.LastError = (mode .. ": " .. tostring(err)):sub(1, 180)
+                ctx.FarmMonitor.LastErrorAt = now
+            end
             warn("[Slow Hub] " .. mode .. " step error: " .. tostring(err))
             F.cancelTravel()
             F.releaseHold()
