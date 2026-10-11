@@ -125,7 +125,20 @@ local ZzzzWorld = {
     Target = nil
 }
 
-local Lift = { Enabled = false, Target = nil, Status = "Disabled", NextPromptAt = 0, PromptAttempts = 0 }
+local Lift = {
+    Enabled = false,
+    Target = nil,
+    Status = "Disabled",
+    NextPromptAt = 0,
+    PromptAttempts = 0,
+    AutoNextFloor = true,
+    GroundDistance = 7.5,
+    HadEnemies = false,
+    EmptySince = nil,
+    WaitingForWave = false,
+    NextFloorBusy = false,
+    NextFloorAt = 0
+}
 
 local Raid = {
     Enabled = false,
