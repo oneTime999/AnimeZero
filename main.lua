@@ -2,6 +2,11 @@ if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 
+if game.GameId ~= 10512942223 then
+    warn("[Slow Hub] Unsupported game: " .. tostring(game.GameId))
+    return
+end
+
 local Env = (getgenv and getgenv()) or _G
 local Root = Env.PcdFnlBossModulesURL
     or "https://raw.githubusercontent.com/oneTime999/AnimeZero/refs/heads/main/"
@@ -31,7 +36,7 @@ end
 
 local ctx = loadModule("Core")
 local modules = {
-    "Enemies", "Movement", "Skills", "Rubble", "Story", "Raids",
+    "GameGuard", "Enemies", "Movement", "Skills", "Rubble", "Story", "Raids",
     "ZzzzWorld", "UI", "Drops", "RunRewards", "Webhook", "Profiles", "Runtime", "Recovery"
 }
 
