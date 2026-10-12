@@ -6,7 +6,6 @@ return function(ctx)
     local UNIVERSE_ID = 10512942223
     local MATCH_PLACE_ID = 109151342576374
     local MODES = {
-        Story = {Name = "HxH Story", Value = "hxh"},
         Raids = {Name = "Shadow Monarch", Value = "sololevelingraid"},
         Zzz = {Name = "Zzz World", Value = "infinite"},
         Lift = {Name = "Endless Trial", Value = "lift"}
