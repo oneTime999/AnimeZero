@@ -111,7 +111,7 @@ return function(ctx)
         local selected = ctx.ActiveFarmMode
         if selected ~= "Raids" and selected ~= "Zzz" and selected ~= "Lift" then
             selected = Raid.Enabled and "Raids"
-                or Lift.Enabled and "Trial"
+                or Lift.Enabled and "Lift"
                 or "Zzz"
         end
         switchToMode(selected)
