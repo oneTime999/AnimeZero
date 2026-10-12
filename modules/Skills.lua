@@ -79,7 +79,7 @@ return function(ctx)
     end
 
     function F.autoSkills()
-        if not C.Skills or not (S.Enabled or Raid.Enabled or Zzzz.Enabled or (ctx.Lift and ctx.Lift.Enabled)) then
+        if not C.Skills or not (Raid.Enabled or Zzzz.Enabled or (ctx.Lift and ctx.Lift.Enabled)) then
             return
         end
 
