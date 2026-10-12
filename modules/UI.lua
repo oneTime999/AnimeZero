@@ -148,7 +148,7 @@ return function(ctx)
                 for _, skill in ipairs(Skill) do
                     skill.Last = -math.huge
                 end
-            elseif not Zzzz.Enabled then
+            elseif not Zzzz.Enabled and not Lift.Enabled then
                 F.releaseHold()
                 F.restoreCollisions()
             end
@@ -182,7 +182,7 @@ return function(ctx)
                 for _, skill in ipairs(Skill) do
                     skill.Last = -math.huge
                 end
-            elseif not Raid.Enabled then
+            elseif not Raid.Enabled and not Lift.Enabled then
                 F.releaseHold()
                 F.restoreCollisions()
             end
