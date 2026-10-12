@@ -348,7 +348,7 @@ return function(ctx)
 
     Settings:AddDropdown("V11_Position", {
         Title = "Attack Position",
-        Description = "Below uses a shared 8-stud gap in every mode. Other positions use Enemy Distance."
+        Description = "Below uses a shared 8-stud gap in every mode. Other positions use Enemy Distance.",
         Values = {"Behind", "Above", "Inside", "Below", "Front", "Left", "Right"},
         Default = "Below",
         Callback = function(value) C.Position = value end
