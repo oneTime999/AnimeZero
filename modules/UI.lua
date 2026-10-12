@@ -24,7 +24,6 @@ return function(ctx)
         MinimizeKey = Enum.KeyCode.LeftControl
     })
 
-    local Story = Window:AddTab({Title = "Story", Icon = "book-open"})
     local Raids = Window:AddTab({Title = "Raids", Icon = "swords"})
     local ZzzzTab = Window:AddTab({Title = "Zzz World", Icon = "infinity"})
     local LiftTab = Window:AddTab({Title = "Lift", Icon = "arrow-up-down"})
@@ -33,7 +32,6 @@ return function(ctx)
     local Webhooks = Window:AddTab({Title = "Webhooks", Icon = "bell"})
     local Profiles = Window:AddTab({Title = "Profiles", Icon = "save"})
 
-    local storyToggle
     local raidToggle
     local zzzzToggle
     local liftToggle
@@ -55,7 +53,6 @@ return function(ctx)
     local invalidSince = {}
     ctx.EnforceFarmLocation = function()
         for _, entry in ipairs({
-            {Key = "Story", State = S, Toggle = storyToggle},
             {Key = "Raids", State = Raid, Toggle = raidToggle},
             {Key = "Zzz", State = Zzzz, Toggle = zzzzToggle},
             {Key = "Lift", State = Lift, Toggle = liftToggle}
@@ -85,13 +82,6 @@ return function(ctx)
     local function switchToMode(selected)
         ctx.ActiveFarmMode = selected
 
-        if selected ~= "Story" then
-            S.Enabled = false
-            if storyToggle and storyToggle.Value then
-                storyToggle:SetValue(false)
-            end
-        end
-
         if selected ~= "Raids" then
             Raid.Enabled = false
             Raid.Target = nil
@@ -116,76 +106,19 @@ return function(ctx)
     end
 
     ctx.EnforceFarmExclusivity = function()
-        local running = (S.Enabled and 1 or 0)
-            + (Raid.Enabled and 1 or 0)
+        local running = (Raid.Enabled and 1 or 0)
             + (Zzzz.Enabled and 1 or 0)
             + (Lift.Enabled and 1 or 0)
         if running <= 1 then return end
 
         local selected = ctx.ActiveFarmMode
-        if selected ~= "Story" and selected ~= "Raids" and selected ~= "Zzz" and selected ~= "Lift" then
-            selected = S.Enabled and "Story"
-                or Raid.Enabled and "Raids"
+        if selected ~= "Raids" and selected ~= "Zzz" and selected ~= "Lift" then
+            selected = Raid.Enabled and "Raids"
                 or Lift.Enabled and "Lift"
                 or "Zzz"
         end
         switchToMode(selected)
     end
-
-    Story:AddSection("HxH Story")
-
-    storyToggle = Story:AddToggle("V11_Enable", {
-        Title = "Story Auto Farm",
-        Description = "Automatically clears HxH Story waves and advances through the stage.",
-        Default = false,
-        Callback = function(value)
-            if value and denyActivation("Story", storyToggle) then return end
-            if value then switchToMode("Story") end
-            S.Enabled = value
-            if value then
-                -- Send Story start vote only once per server, including toggle reactivation.
-                local serverKey = tostring(game.JobId ~= "" and game.JobId or game.PlaceId)
-                local voteKey = "AnimeZero_StoryStartVote_" .. serverKey
-                if not Env[voteKey] then
-                    Env[voteKey] = true
-                    local startVote = RS:FindFirstChild("startVote")
-                    if startVote and startVote:IsA("RemoteEvent") then
-                        pcall(function() startVote:FireServer(nil) end)
-                    end
-                end
-
-                S.OldModels = setmetatable({}, {__mode = "k"})
-                S.OldDead = setmetatable({}, {__mode = "k"})
-                S.WaveModels = {}
-                S.Ignored = {}
-                S.TargetProgress = setmetatable({}, {__mode = "k"})
-                S.IgnoredStale = 0
-                S.LastM1 = 0
-                S.FinalRestored = false
-                S.CachedDifficulty = nil
-                S.LastDifficultyScan = 0
-                for _, skill in ipairs(Skill) do
-                    skill.Last = -math.huge
-                end
-                F.toWave(C.FirstBorder, 1)
-            else
-                if ctx.ActiveFarmMode == "Story" then
-                    ctx.ActiveFarmMode = nil
-                end
-                F.cancelTravel()
-                F.releaseHold()
-                if not ctx.ActiveFarmMode and S.Phase == "BREAK_RUBBLE" and S.RubbleRef then
-                    local prior = C.Noclip
-                    C.Noclip = false
-                    F.rubblePosition(S.RubbleRef)
-                    C.Noclip = prior
-                end
-                F.restoreCollisions()
-                F.setPhase("GO_WAVE", "Disabled")
-            end
-        end
-    })
-
 
     Raids:AddSection("Shadow Monarch")
 
@@ -425,20 +358,11 @@ return function(ctx)
         Default = 12, Rounding = 1,
         Callback = function(value) C.Distance = value end
     })
-    Settings:AddSlider("V11_RubbleDistance", {
-        Title = "Rubble Distance (studs)", Description = "Horizontal spacing from the Story barrier; does not lower you below the map.", Min = 0, Max = 50,
-        Default = 8, Rounding = 1,
-        Callback = function(value) C.RubbleDistance = value end
-    })
     Settings:AddToggle("V11_Noclip", {
         Title = "Noclip", Description = "Temporarily passes through obstacles during movement.", Default = true,
         Callback = function(value)
             C.Noclip = value
             if not value then
-                if S.Enabled and S.Phase == "BREAK_RUBBLE" and S.RubbleRef then
-                    local cf = F.rubbleCFrame(S.RubbleRef)
-                    if cf then F.setPosition(cf, 0.35, true) end
-                end
                 F.restoreCollisions()
             end
         end
