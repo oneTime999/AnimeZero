@@ -134,10 +134,7 @@ return function(ctx)
         -- Mode overrides let Trial use one consistent offset without changing
         -- the user's saved positioning settings for Raids or Zzz World.
         local position = positionOverride or C.Position
-        local d = distanceOverride
-        if d == nil then
-            d = position == "Below" and (C.BelowAttackGap or 8) or C.Distance
-        end
+        local d = distanceOverride == nil and C.Distance or distanceOverride
         local height = heightOverride == nil and C.Height or heightOverride
         local cf = part.CFrame
         local offset
