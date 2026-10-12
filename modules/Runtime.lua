@@ -173,7 +173,7 @@ return function(ctx)
         elseif mode == "Zzz" then
             Zzzz.Status = "Retrying Zzz World after an error"
         elseif mode == "Lift" then
-            Lift.Status = "Retrying Lift after an error"
+            Lift.Status = "Retrying Trial after an error"
         end
         if now - (lastStepErrorAt[mode] or -math.huge) >= 12 then
             lastStepErrorAt[mode] = now
