@@ -21,6 +21,7 @@ pcall(function() VIM = game:GetService("VirtualInputManager") end)
 local C = {
     Position = "Below",
     Distance = 12,
+    RubbleDistance = 0,
     Height = 0,
     M1Interval = 0.2,
     ConfirmClear = 1.0,
