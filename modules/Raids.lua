@@ -55,6 +55,19 @@ return function(ctx)
         end
 
         local now = os.clock()
+        -- Detect both wins and losses, including deaths before boss engagement.
+        local gui = Player:FindFirstChildOfClass("PlayerGui")
+        local endScreen = gui and gui:FindFirstChild("EndScreen")
+        local resultVisible = endScreen and endScreen:IsA("ScreenGui") and endScreen.Enabled
+        local resultFlag = gui and gui:GetAttribute("EndScreenActive") == true
+        if (resultVisible or resultFlag) and not Raid.RoundFinished then
+            Raid.RoundFinished = true
+            Raid.Target = nil
+            Raid.BossGoneAt = nil
+            Raid.WebhookRoundFinishedAt = now
+            F.releaseHold()
+            Raid.Status = "Match ended; preparing replay"
+        end
         if Raid.ReplayUntil > 0 and now >= Raid.ReplayUntil then
             Raid.ReplayUntil = 0
         end
