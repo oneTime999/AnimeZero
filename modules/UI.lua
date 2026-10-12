@@ -1,6 +1,5 @@
 return function(ctx)
-    local Players, RS, WS, RunService, VU = ctx.Players, ctx.RS, ctx.WS, ctx.RunService, ctx.VU
-    local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
+    local WS = ctx.WS
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
     local Zzzz = ctx.ZzzzWorld
     local Lift = ctx.Lift
@@ -24,7 +23,7 @@ return function(ctx)
 
     local Raids = Window:AddTab({Title = "Raids", Icon = "swords"})
     local ZzzzTab = Window:AddTab({Title = "Zzz World", Icon = "infinity"})
-    local LiftTab = Window:AddTab({Title = "Trial", Icon = "arrow-up-down"})
+    local TrialTab = Window:AddTab({Title = "Trial", Icon = "arrow-up-down"})
     local Combat = Window:AddTab({Title = "Combat", Icon = "flame"})
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
     local Webhooks = Window:AddTab({Title = "Webhooks", Icon = "bell"})
@@ -32,7 +31,7 @@ return function(ctx)
 
     local raidToggle
     local zzzzToggle
-    local liftToggle
+    local trialToggle
 
     local function denyActivation(mode, toggle)
         if Guard.Allowed(mode) then return false end
