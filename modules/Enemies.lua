@@ -42,14 +42,7 @@ return function(ctx)
     end
 
     function F.enemyFolder()
-        local folder = WS:FindFirstChild("enemies") or WS:FindFirstChild("Enemies")
-        if folder then return folder end
-        for _, child in ipairs(WS:GetChildren()) do
-            if child:IsA("Folder") and string.lower(child.Name) == "enemies" then
-                return child
-            end
-        end
-        return nil
+        return WS:FindFirstChild("enemies")
     end
 
     function F.livingEnemyExists()
