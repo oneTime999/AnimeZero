@@ -152,7 +152,7 @@ return function(ctx)
         end
 
         local goal = part.CFrame + Vector3.new(0, 2.5, 0)
-        local arrived = F.travelTo(goal, "LiftPrompt")
+        local arrived = F.travelTo(goal, "TrialPrompt")
         if not arrived then
             Lift.Status = "Moving to Trial interaction"
             return
