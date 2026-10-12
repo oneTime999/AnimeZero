@@ -426,8 +426,8 @@ return function(ctx)
         Callback = function(value) C.Distance = value end
     })
     Settings:AddSlider("V11_RubbleDistance", {
-        Title = "Rubble Distance (studs)", Description = "Separate vertical offset for Story rubble. Start at 0 and adjust gradually.", Min = 0, Max = 50,
-        Default = 0, Rounding = 1,
+        Title = "Rubble Distance (studs)", Description = "Horizontal spacing from the Story barrier; does not lower you below the map.", Min = 0, Max = 50,
+        Default = 8, Rounding = 1,
         Callback = function(value) C.RubbleDistance = value end
     })
     Settings:AddToggle("V11_Noclip", {
