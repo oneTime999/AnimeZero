@@ -204,7 +204,7 @@ return function(ctx)
 
     trialToggle = TrialTab:AddToggle("AnimeZero_LiftAutoFarm", {
         Title = "Trial Auto Farm",
-        Description = "Maintains a fixed 8-stud gap below each enemy part and advances after the floor is cleared.",
+        Description = "Maintains the shared 8-stud gap below each enemy and advances after the floor is cleared.",
         Default = false,
         Callback = function(value)
             if value then
@@ -348,13 +348,13 @@ return function(ctx)
 
     Settings:AddDropdown("V11_Position", {
         Title = "Attack Position",
-        Description = "Applies to Raids and Zzz World. Trial uses a fixed position below each target.",
+        Description = "Below uses a shared 8-stud gap in every mode. Other positions use Enemy Distance."
         Values = {"Behind", "Above", "Inside", "Below", "Front", "Left", "Right"},
-        Default = "Behind",
+        Default = "Below",
         Callback = function(value) C.Position = value end
     })
     Settings:AddSlider("V11_Distance", {
-        Title = "Enemy Distance (studs)", Description = "Distance for Raids and Zzz World; Trial always uses a fixed 8-stud gap.", Min = 1, Max = 50,
+        Title = "Enemy Distance (studs)", Description = "Applies to non-Below positions. Below and Trial use the shared 8-stud gap.", Min = 1, Max = 50,
         Default = 12, Rounding = 1,
         Callback = function(value) C.Distance = value end
     })
