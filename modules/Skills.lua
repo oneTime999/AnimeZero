@@ -1,6 +1,5 @@
 return function(ctx)
-    local Players, RS, WS, RunService, VU = ctx.Players, ctx.RS, ctx.WS, ctx.RunService, ctx.VU
-    local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
+    local RS, VIM = ctx.RS, ctx.VIM
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
     local Zzzz = ctx.ZzzzWorld
     local F = ctx.Functions
