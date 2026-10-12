@@ -36,7 +36,7 @@ return function(ctx)
             if nestedRemote then
                 remote:FireServer(1)
             elseif buffer and type(buffer.fromstring) == "function" then
-                remote:FireServer(buffer.fromstring("\\001"))
+                remote:FireServer(buffer.fromstring("\001"))
             else
                 remote:FireServer(1)
             end
