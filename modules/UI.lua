@@ -111,7 +111,7 @@ return function(ctx)
         local selected = ctx.ActiveFarmMode
         if selected ~= "Raids" and selected ~= "Zzz" and selected ~= "Lift" then
             selected = Raid.Enabled and "Raids"
-                or Lift.Enabled and "Lift"
+                or Lift.Enabled and "Trial"
                 or "Zzz"
         end
         switchToMode(selected)
@@ -209,7 +209,7 @@ return function(ctx)
         Callback = function(value)
             if value then
                 -- Keep the UI preference enabled across places, but only run the farm
-                -- in the confirmed Lift place when its prompt is present.
+                -- in the confirmed Trial place when its interaction prompt is present.
                 if not Guard.Allowed("Lift") then
                     Lift.Enabled = false
                     Lift.Target = nil
@@ -259,7 +259,7 @@ return function(ctx)
         if game.GameId ~= 10512942223 or game.PlaceId ~= 109151342576374 then
             if trialToggle and trialToggle.Value then
                 Lift.Enabled = false
-                Lift.Status = "Saved, waiting for Lift place"
+                Lift.Status = "Saved, waiting for Trial mode"
             end
             return
         end
