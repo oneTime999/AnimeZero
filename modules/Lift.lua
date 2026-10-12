@@ -8,7 +8,6 @@ return function(ctx)
     local FLOOR_BUMP_HEIGHT = 4
     local FLOOR_BUMP_TIME = 0.12
     local NEXT_FLOOR_COOLDOWN = 2.5
-    local GROUND_DISTANCE = 7.5
 
     local function getLift()
         local world = WS:FindFirstChild("World")
@@ -22,7 +21,7 @@ return function(ctx)
         local folder = F.enemyFolder()
         local target, distance = nil, math.huge
         local _, root = F.character()
-        if not folder or not root then return nil, folder end
+        if not folder or not root then return nil end
 
         for _, enemy in ipairs(folder:GetChildren()) do
             if enemy:IsA("Model") and F.living(enemy) then
@@ -35,7 +34,7 @@ return function(ctx)
                 end
             end
         end
-        return target, folder
+        return target
     end
 
     local function positionBelowTarget(target)
@@ -45,15 +44,12 @@ return function(ctx)
             if Lift.PreviousAutoRotate == nil then Lift.PreviousAutoRotate = humanoid.AutoRotate end
             humanoid.AutoRotate = false
         end
-        -- Lift always attacks from below; the height offset is locked at zero.
-        local oldPosition, oldHeight = ctx.C.Position, ctx.C.Height
-        ctx.C.Position, ctx.C.Height = "Below", 0
-        local ok = F.enemyPosition(target)
-        ctx.C.Position, ctx.C.Height = oldPosition, oldHeight
-        return ok
+        -- Trial uses the same gap on every client, independent of saved
+        -- Enemy Distance settings. The gap is measured below the target part.
+        return F.enemyPosition(target, "Below", Lift.AttackGap, 0)
     end
 
-    local function settleOnGround()
+    local function restoreAfterBump()
         local character, root = F.character()
         if not character or not root then return false end
         local goal = root.CFrame
@@ -74,7 +70,7 @@ return function(ctx)
 
         -- Never move a newly respawned character back to the previous character's location.
         if Lift.Enabled and S.Alive and Player.Character == character then
-            if not settleOnGround() then
+            if not restoreAfterBump() then
                 F.setPosition(base, 0.5, true)
             end
         end
@@ -97,7 +93,7 @@ return function(ctx)
             remote = packets and packets:FindFirstChild("endAction")
         end
         if not remote or not remote:IsA("RemoteEvent") then
-            Lift.Status = "Next Floor remote not found; using Lift fallback"
+            Lift.Status = "Next-floor remote not found; using Trial interaction"
             return false
         end
         if not buffer or type(buffer.fromstring) ~= "function" then
@@ -151,14 +147,14 @@ return function(ctx)
     local function fallbackToLift(lift, prompt)
         local part = lift and (lift:IsA("BasePart") and lift or lift:FindFirstChildWhichIsA("BasePart", true))
         if not part then
-            Lift.Status = "Lift has no usable part"
+            Lift.Status = "Trial interaction has no usable part"
             return
         end
 
         local goal = part.CFrame + Vector3.new(0, 2.5, 0)
         local arrived = F.travelTo(goal, "LiftPrompt")
         if not arrived then
-            Lift.Status = "Moving to Lift"
+            Lift.Status = "Moving to Trial interaction"
             return
         end
 
@@ -168,7 +164,7 @@ return function(ctx)
             local activated = activatePrompt(prompt)
             Lift.Status = activated
                 and ("Interact activated; holding position (attempt " .. Lift.PromptAttempts .. ")")
-                or "Lift activation unavailable; retrying"
+                or "Trial interaction unavailable; retrying"
             if activated then
                 Lift.PromptHolding = true
                 Lift.PromptHoldCF = goal
@@ -199,12 +195,12 @@ return function(ctx)
 
         local lift, prompt = getLift()
         if not lift or not prompt then
-            Lift.Status = "Waiting for Lift mode"
+            Lift.Status = "Waiting for Trial mode"
             Lift.Target = nil
             return
         end
 
-        local target, enemies = getEnemies()
+        local target = getEnemies()
         if target then
             Lift.HadEnemies = true
             Lift.EmptySince = nil
@@ -245,7 +241,7 @@ return function(ctx)
                 if Lift.AutoNextFloor then
                     fireNextFloor()
                 else
-                    Lift.Status = "Lift Interact activated"
+                    Lift.Status = "Trial interaction activated"
                 end
                 return
             end
