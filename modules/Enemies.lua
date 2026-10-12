@@ -42,7 +42,17 @@ return function(ctx)
     end
 
     function F.enemyFolder()
-        return WS:FindFirstChild("enemies")
+        -- Roblox folder names are case-sensitive; accept either common casing.
+        local folder = WS:FindFirstChild("enemies") or WS:FindFirstChild("Enemies")
+        if folder then return folder end
+
+        for _, child in ipairs(WS:GetChildren()) do
+            if child:IsA("Folder") and string.lower(child.Name) == "enemies" then
+                return child
+            end
+        end
+
+        return nil
     end
 
 
