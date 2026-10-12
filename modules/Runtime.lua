@@ -4,8 +4,6 @@ return function(ctx)
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
     local Zzzz = ctx.ZzzzWorld
     local Lift = ctx.Lift
-    local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
-    local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
     local function allowed(mode)
         return ctx.GameGuard and ctx.GameGuard.Allowed(mode) == true
@@ -21,18 +19,9 @@ return function(ctx)
     end)
 
     local characterAddedConn, humanoidDiedConn
-    local pendingRespawnAt, pendingReason = nil, nil
-    local observedCharacter = nil
 
     local function queueFarmRecovery(reason)
-        if not S.Alive or not (S.Enabled or Raid.Enabled or Zzzz.Enabled or Lift.Enabled) then return end
-        if S.Enabled then
-            pendingRespawnAt = os.clock()
-            pendingReason = reason
-            S.Target = nil
-            S.BossTarget = nil
-            S.Status = "Waiting for respawn: " .. reason
-        end
+        if not S.Alive or not (Raid.Enabled or Zzzz.Enabled or Lift.Enabled) then return end
         F.cancelTravel()
         F.releaseHold()
         if Raid.Enabled then
@@ -62,7 +51,6 @@ return function(ctx)
             humanoidDiedConn = nil
         end
         if not character then return end
-        observedCharacter = character
         local humanoid = character:FindFirstChildOfClass("Humanoid")
             or character:WaitForChild("Humanoid", 10)
         if not S.Alive or Player.Character ~= character or not humanoid then
@@ -95,14 +83,7 @@ return function(ctx)
         Zzzz.Target = nil
         Lift.Enabled = false
         Lift.Target = nil
-        if S.Enabled and S.Phase == "BREAK_RUBBLE" and S.RubbleRef then
-            local savedNoclip = C.Noclip
-            C.Noclip = false
-            F.rubblePosition(S.RubbleRef)
-            C.Noclip = savedNoclip
-        end
         S.Alive = false
-        S.Enabled = false
         F.cancelTravel()
         F.releaseHold()
         F.restoreCollisions()
@@ -118,7 +99,7 @@ return function(ctx)
 
     local lastTravelErrorAt = -math.huge
     S.holdConn = RunService.Heartbeat:Connect(function()
-        if S.Alive and ((S.Enabled and allowed("Story")) or Lift.Enabled) then
+        if S.Alive and Lift.Enabled then
             local ok, err = pcall(F.updateTravel)
             if not ok then
                 F.cancelTravel()
@@ -129,8 +110,7 @@ return function(ctx)
             end
         end
         if not S.Alive or not S.HoldCF or S.Travel
-            or not ((S.Enabled and allowed("Story"))
-                or (Raid.Enabled and allowed("Raids"))
+            or not ((Raid.Enabled and allowed("Raids"))
                 or (Zzzz.Enabled and allowed("Zzz")) or Lift.Enabled) then return end
         local cf = S.HoldCF
         local char, root = F.character()
@@ -148,10 +128,8 @@ return function(ctx)
 
     S.noclipConn = RunService.Stepped:Connect(function()
         if S.Alive and C.Noclip
-            and ((S.Enabled and allowed("Story"))
-                or (Raid.Enabled and allowed("Raids"))
-                or (Zzzz.Enabled and allowed("Zzz")) or Lift.Enabled)
-            and (Raid.Enabled or Zzzz.Enabled or Lift.Enabled or S.Phase ~= "COMPLETED" or not S.FinalRestored) then
+            and ((Raid.Enabled and allowed("Raids"))
+                or (Zzzz.Enabled and allowed("Zzz")) or Lift.Enabled) then
             pcall(F.applyNoclip)
         end
     end)
@@ -164,11 +142,7 @@ return function(ctx)
         local ok, err = pcall(callback)
         if ok then return end
         local now = os.clock()
-        if mode == "Story" then
-            S.Status = "Retrying Story after an error"
-        elseif mode == "HUD sync" then
-            S.Status = "HUD refresh failed; Story still running"
-        elseif mode == "Raid" then
+        if mode == "Raid" then
             Raid.Status = "Retrying Raid after an error"
         elseif mode == "Zzz" then
             Zzzz.Status = "Retrying Zzz World after an error"
@@ -196,10 +170,6 @@ return function(ctx)
             if ctx.EnforceFarmExclusivity then
                 safeStep("Mode sync", ctx.EnforceFarmExclusivity)
             end
-            if S.Enabled and allowed("Story") then
-                safeStep("HUD sync", F.syncHUDProgress)
-                safeStep("Story", F.step)
-            end
             if Raid.Enabled and allowed("Raids") then
                 safeStep("Raid", F.raidStep)
             end
@@ -210,128 +180,6 @@ return function(ctx)
                 safeStep("Lift", F.liftStep)
             end
             task.wait(0.05)
-        end
-    end)
-
-    -- Watchdog keeps Auto Story enabled while repairing stale state after
-    -- deaths, in-server replays and targeting failures.
-    task.spawn(function()
-        local lastPhase, phaseSince = nil, os.clock()
-        local trackedEnemy, lastHealth, lastProgress = nil, nil, os.clock()
-        local targetMissingSince = nil
-
-        while S.Alive and not Fluent.Unloaded do
-            task.wait(0.6)
-            if not S.Alive or not S.Enabled or not allowed("Story") then
-                trackedEnemy, lastHealth = nil, nil
-                targetMissingSince = nil
-                lastPhase = nil
-                phaseSince = os.clock()
-                pendingRespawnAt, pendingReason = nil, nil
-            else
-                local now = os.clock()
-                local character = Player.Character
-                local validCharacter = F.character() ~= nil
-                if S.Phase ~= lastPhase then
-                    lastPhase, phaseSince = S.Phase, now
-                    trackedEnemy, lastHealth, lastProgress = nil, nil, now
-                    targetMissingSince = nil
-                end
-
-                if pendingRespawnAt then
-                    if validCharacter and character == observedCharacter
-                        and now - pendingRespawnAt >= 0.5 then
-                        local reason = pendingReason or "respawn"
-                        pendingRespawnAt, pendingReason = nil, nil
-                        local ok, recovered = pcall(F.recoverStory,
-                            "after " .. reason, false)
-                        if ok and recovered then
-                            warn("[Slow Hub] Auto Story recovered after respawn")
-                            trackedEnemy, lastHealth, lastProgress = nil, nil, now
-                            targetMissingSince = nil
-                        end
-                    end
-                elseif validCharacter and F.recoverStory then
-                    local lastRecovery = S.StoryLastRecoveryAt or -math.huge
-                    local canRecover = now - lastRecovery >= 12
-                    if S.Phase == "COMPLETED" and canRecover
-                        and now - (S.FinishAt or now) >= 2
-                        and ctx.ReadMatchStore then
-                        local ok, _, matchPhase = pcall(ctx.ReadMatchStore)
-                        if ok and matchPhase == "active" then
-                            pcall(F.recoverStory, "new active match", true)
-                            lastPhase = nil
-                            warn("[Slow Hub] Story restarted for next match")
-                        end
-                    elseif S.Phase == "KILL_ENEMIES"
-                        or S.Phase == "KILL_BOSS" then
-                        local target = S.Phase == "KILL_BOSS"
-                            and S.BossTarget or S.Target
-                        if target and F.living(target) then
-                            local hp = F.hpOf(target)
-                            if target ~= trackedEnemy then
-                                trackedEnemy, lastHealth, lastProgress =
-                                    target, hp, now
-                            elseif hp and lastHealth and hp < lastHealth - 0.01 then
-                                lastProgress = now
-                            end
-                            lastHealth = hp
-                            targetMissingSince = nil
-                            local lastAttack = math.max(
-                                S.StoryLastAttackAt or phaseSince, phaseSince)
-                            local attackStalled = now - lastAttack >= 12
-                            local damageStalled = hp ~= nil
-                                and now - lastProgress >= 22
-                            if canRecover and (attackStalled or damageStalled) then
-                                local reason = attackStalled
-                                    and "no attack attempts" or "damage stalled"
-                                pcall(F.recoverStory, reason, false)
-                                trackedEnemy, lastHealth, lastProgress =
-                                    nil, nil, now
-                                lastPhase = nil
-                                warn("[Slow Hub] Story combat recovered: " .. reason)
-                            end
-                        else
-                            trackedEnemy, lastHealth, lastProgress =
-                                nil, nil, now
-                            if F.livingEnemyExists() then
-                                targetMissingSince = targetMissingSince or now
-                                if canRecover and now - targetMissingSince >= 10 then
-                                    pcall(F.recoverStory, "lost enemy target", false)
-                                    targetMissingSince = nil
-                                    lastPhase = nil
-                                    warn("[Slow Hub] Story target acquisition recovered")
-                                end
-                            else
-                                targetMissingSince = nil
-                            end
-                        end
-                    elseif S.Phase == "WAIT_BOSS" and canRecover
-                        and now - phaseSince >= (F.livingEnemyExists() and 35 or 65) then
-                        local ok, recovered = pcall(F.recoverStory,
-                            "waiting for boss too long", false)
-                        if ok and recovered then
-                            lastPhase = nil
-                            warn("[Slow Hub] Story boss wait recovered")
-                        end
-                    elseif canRecover
-                        and ((S.Phase == "GO_WAVE" or S.Phase == "GO_SECOND_WAVE")
-                            and now - phaseSince >= 30
-                            or S.Phase == "WAIT_AREA_CHANGE"
-                            and now - phaseSince >= 45
-                            or S.Phase == "BREAK_RUBBLE"
-                            and now - phaseSince >= 40
-                            and (not S.RubbleRef
-                                or not F.rubblePart(S.RubbleRef))) then
-                        local reason = "stalled in " .. tostring(S.Phase)
-                        local ok, recovered = pcall(F.recoverStory, reason, false)
-                        if ok and recovered then
-                            lastPhase = nil
-                            warn("[Slow Hub] Story recovered: " .. reason)
-                        end
-                    end
-                end
-            end
         end
     end)
 
@@ -389,8 +237,7 @@ return function(ctx)
 
         while S.Alive and not Fluent.Unloaded do
             task.wait(0.5)
-            local replayMode = (S.Enabled and allowed("Story")) and "Story"
-                or ((Zzzz.Enabled and allowed("Zzz")) and "Zzz" or nil)
+            local replayMode = (Zzzz.Enabled and allowed("Zzz")) and "Zzz" or nil
             if replayMode ~= lastReplayMode then
                 lastReplayMode = replayMode
                 lastReplayRequestAt = -math.huge
@@ -451,11 +298,6 @@ return function(ctx)
                             finished = false
                         end
                     end
-                else
-                    finished = (S.Phase == "COMPLETED"
-                        and now - (S.FinishAt or now) >= 2)
-                        or matchPhase == "finished" or screenEnabled
-                end
 
                 local holdingResult = false
                 if ctx.WebhookPauseReplay then
@@ -465,7 +307,7 @@ return function(ctx)
 
                 -- Keep retrying Zzz World until the server reports a new active round.
                 -- A short interval handles delayed/laggy clients without a tight spam loop.
-                local interval = replayMode == "Zzz" and 2 or 3
+                local interval = 2
                 if finished and not holdingResult
                     and now - lastReplayRequestAt >= interval then
                     -- The game's Retry event is nested under ReplicatedStorage.runPackets.
