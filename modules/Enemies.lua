@@ -1,9 +1,6 @@
 return function(ctx)
-    local Players, RS, WS, RunService, VU = ctx.Players, ctx.RS, ctx.WS, ctx.RunService, ctx.VU
-    local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
-    local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
-    local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
-    local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
+    local WS = ctx.WS
+    local Player = ctx.Player
     local F = ctx.Functions
 
     function F.character()
@@ -59,23 +56,5 @@ return function(ctx)
         return false
     end
 
-    local lastEnemyRecheck = -math.huge
-    function F.findActiveEnemy()
-        local target = F.findEnemy()
-        if target then return target end
-        if not F.livingEnemyExists() then return nil end
-
-        local now = os.clock()
-        -- Reconsider skipped mobs only after trying other targets for a while.
-        -- Resetting the list every 0.6 s caused a permanent retry loop.
-        if now - lastEnemyRecheck >= 4 then
-            S.Ignored = {}
-            S.TargetProgress = setmetatable({}, {__mode = "k"})
-            S.Target = nil
-            lastEnemyRecheck = now
-            return F.findEnemy()
-        end
-        return nil
-    end
 
 end
