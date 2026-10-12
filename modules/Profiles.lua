@@ -1,10 +1,4 @@
 return function(ctx)
-    local Players, RS, WS, RunService, VU = ctx.Players, ctx.RS, ctx.WS, ctx.RunService, ctx.VU
-    local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
-    local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
-    local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
-    local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
-    local F = ctx.Functions
 
     local Fluent, Profiles, Window = ctx.Fluent, ctx.Profiles, ctx.Window
     local SaveManager = Fluent.SaveManager
