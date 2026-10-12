@@ -97,7 +97,7 @@ return function(ctx)
             return false
         end
         if not buffer or type(buffer.fromstring) ~= "function" then
-            Lift.Status = "Buffer API unavailable; using Lift fallback"
+            Lift.Status = "Buffer API unavailable; using Trial interaction fallback"
             return false
         end
 
@@ -112,7 +112,7 @@ return function(ctx)
             return false
         end
 
-        Lift.Status = "Next Floor requested; holding Interact position"
+        Lift.Status = "Next floor requested; holding Trial interaction position"
         Lift.WaitingForWave = true
         Lift.HadEnemies = false
         Lift.EmptySince = nil
@@ -215,7 +215,7 @@ return function(ctx)
             Lift.Target = target
 
             if positionBelowTarget(target) and F.living(target) then
-                Lift.Status = "Below-target combat: " .. target.Name
+                Lift.Status = "Trial combat: " .. target.Name
                 F.attackM1()
                 F.autoSkills()
             end
