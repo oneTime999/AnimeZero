@@ -214,7 +214,7 @@ return function(ctx)
                 end
             end
         end
-    end())
+    end)
 
     -- Raid watchdog: an enabled farm can remain on a living but
     -- unresponsive target forever without this progress check.
@@ -331,6 +331,7 @@ return function(ctx)
                             finished = false
                         end
                     end
+                end
 
                 local holdingResult = false
                 if ctx.WebhookPauseReplay then
