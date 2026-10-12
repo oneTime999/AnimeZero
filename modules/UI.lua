@@ -4,8 +4,6 @@ return function(ctx)
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
     local Zzzz = ctx.ZzzzWorld
     local Lift = ctx.Lift
-    local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
-    local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
     local Guard = assert(ctx.GameGuard, "GameGuard module is required")
 
@@ -150,7 +148,7 @@ return function(ctx)
                 for _, skill in ipairs(Skill) do
                     skill.Last = -math.huge
                 end
-            elseif not S.Enabled then
+            elseif not Zzzz.Enabled then
                 F.releaseHold()
                 F.restoreCollisions()
             end
@@ -184,7 +182,7 @@ return function(ctx)
                 for _, skill in ipairs(Skill) do
                     skill.Last = -math.huge
                 end
-            elseif not S.Enabled and not Raid.Enabled then
+            elseif not Raid.Enabled then
                 F.releaseHold()
                 F.restoreCollisions()
             end
@@ -249,7 +247,7 @@ return function(ctx)
                 if ctx.ActiveFarmMode == "Lift" then ctx.ActiveFarmMode = nil end
                 F.cancelTravel()
                 F.releaseHold()
-                if not S.Enabled and not Raid.Enabled and not Zzzz.Enabled then
+                if not Raid.Enabled and not Zzzz.Enabled then
                     F.restoreCollisions()
                 end
                 Lift.Status = "Disabled"
@@ -310,10 +308,6 @@ return function(ctx)
     Combat:AddToggle("V11_AutoSkills", {
         Title = "Auto Skills", Description = "Sends inputs for enabled skills using their configured intervals.", Default = true,
         Callback = function(value) C.Skills = value end
-    })
-    Combat:AddToggle("V11_SkillsOnRubble", {
-        Title = "Use Skills on Barriers", Description = "Allows skills to be used while breaking stage barriers.", Default = false,
-        Callback = function(value) C.SkillsOnBorder = value end
     })
     Combat:AddSlider("Stable_SkillHold", {
         Title = "Skill Input Duration", Description = "Controls how long each skill key is held.",
