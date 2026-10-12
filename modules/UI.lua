@@ -421,9 +421,14 @@ return function(ctx)
         Callback = function(value) C.Position = value end
     })
     Settings:AddSlider("V11_Distance", {
-        Title = "Target Distance (studs)", Description = "Shared spacing for NPCs and rubble across farm modes; Lift locks attack height and position.", Min = 1, Max = 50,
+        Title = "Enemy Distance (studs)", Description = "Distance used for NPC targets.", Min = 1, Max = 50,
         Default = 12, Rounding = 1,
         Callback = function(value) C.Distance = value end
+    })
+    Settings:AddSlider("V11_RubbleDistance", {
+        Title = "Rubble Distance (studs)", Description = "Separate vertical offset for Story rubble. Start at 0 and adjust gradually.", Min = 0, Max = 50,
+        Default = 0, Rounding = 1,
+        Callback = function(value) C.RubbleDistance = value end
     })
     Settings:AddToggle("V11_Noclip", {
         Title = "Noclip", Description = "Temporarily passes through obstacles during movement.", Default = true,
