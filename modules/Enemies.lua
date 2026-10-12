@@ -42,17 +42,25 @@ return function(ctx)
     end
 
     function F.enemyFolder()
-        -- Roblox folder names are case-sensitive; accept either common casing.
         local folder = WS:FindFirstChild("enemies") or WS:FindFirstChild("Enemies")
         if folder then return folder end
-
         for _, child in ipairs(WS:GetChildren()) do
             if child:IsA("Folder") and string.lower(child.Name) == "enemies" then
                 return child
             end
         end
-
         return nil
+    end
+
+    function F.livingEnemyExists()
+        local folder = F.enemyFolder()
+        if not folder then return false end
+        for _, model in ipairs(folder:GetChildren()) do
+            if F.living(model) then
+                return true
+            end
+        end
+        return false
     end
 
 
