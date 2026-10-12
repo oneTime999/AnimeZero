@@ -24,7 +24,7 @@ return function(ctx)
 
     local Raids = Window:AddTab({Title = "Raids", Icon = "swords"})
     local ZzzzTab = Window:AddTab({Title = "Zzz World", Icon = "infinity"})
-    local TrialTab = Window:AddTab({Title = "Trial", Icon = "arrow-up-down"})
+    local LiftTab = Window:AddTab({Title = "Trial", Icon = "arrow-up-down"})
     local Combat = Window:AddTab({Title = "Combat", Icon = "flame"})
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
     local Webhooks = Window:AddTab({Title = "Webhooks", Icon = "bell"})
@@ -32,7 +32,7 @@ return function(ctx)
 
     local raidToggle
     local zzzzToggle
-    local trialToggle
+    local liftToggle
 
     local function denyActivation(mode, toggle)
         if Guard.Allowed(mode) then return false end
@@ -53,7 +53,7 @@ return function(ctx)
         for _, entry in ipairs({
             {Key = "Raids", State = Raid, Toggle = raidToggle},
             {Key = "Zzz", State = Zzzz, Toggle = zzzzToggle},
-            {Key = "Lift", State = Lift, Toggle = trialToggle}
+            {Key = "Lift", State = Lift, Toggle = liftToggle}
         }) do
             if entry.State.Enabled and not Guard.Allowed(entry.Key) then
                 invalidSince[entry.Key] = invalidSince[entry.Key] or os.clock()
@@ -91,7 +91,7 @@ return function(ctx)
         if selected ~= "Lift" then
             Lift.Enabled = false
             Lift.Target = nil
-            if trialToggle and trialToggle.Value then trialToggle:SetValue(false) end
+            if liftToggle and liftToggle.Value then liftToggle:SetValue(false) end
         end
 
         if selected ~= "Zzz" then
@@ -189,8 +189,8 @@ return function(ctx)
         end
     })
 
-    TrialTab:AddSection("Endless Trial Floors")
-    TrialTab:AddToggle("AnimeZero_LiftAutoNextFloor", {
+    LiftTab:AddSection("Endless Trial Floors")
+    LiftTab:AddToggle("AnimeZero_LiftAutoNextFloor", {
         Title = "Auto Next Floor",
         Description = "Requests the next Trial floor automatically after enemies are cleared.",
         Default = true,
@@ -203,14 +203,14 @@ return function(ctx)
         end
     })
 
-    trialToggle = TrialTab:AddToggle("AnimeZero_LiftAutoFarm", {
+    liftToggle = LiftTab:AddToggle("AnimeZero_LiftAutoFarm", {
         Title = "Trial Auto Farm",
-        Description = "Maintains the shared 8-stud gap below each enemy and advances after the floor is cleared.",
+        Description = "Maintains a fixed 8-stud gap below each enemy part and advances after the floor is cleared.",
         Default = false,
         Callback = function(value)
             if value then
                 -- Keep the UI preference enabled across places, but only run the farm
-                -- in the confirmed Trial place when its interaction prompt is present.
+                -- in the confirmed Lift place when its prompt is present.
                 if not Guard.Allowed("Lift") then
                     Lift.Enabled = false
                     Lift.Target = nil
@@ -258,9 +258,9 @@ return function(ctx)
     -- Restore the saved Lift toggle preference; execution remains place-guarded.
     task.spawn(function()
         if game.GameId ~= 10512942223 or game.PlaceId ~= 109151342576374 then
-            if trialToggle and trialToggle.Value then
+            if liftToggle and liftToggle.Value then
                 Lift.Enabled = false
-                Lift.Status = "Saved, waiting for Trial mode"
+                Lift.Status = "Saved, waiting for Lift place"
             end
             return
         end
@@ -272,11 +272,11 @@ return function(ctx)
             local markers = world and world:FindFirstChild("Markers")
             local lift = markers and markers:FindFirstChild("Lift")
             local prompt = lift and lift:FindFirstChildWhichIsA("ProximityPrompt", true)
-            if prompt and trialToggle then
+            if prompt and liftToggle then
                 task.wait(1)
                 if not S.Alive or Fluent.Unloaded then return end
-                if not trialToggle.Value then
-                    trialToggle:SetValue(true)
+                if not liftToggle.Value then
+                    liftToggle:SetValue(true)
                 end
                 return
             end
@@ -349,13 +349,13 @@ return function(ctx)
 
     Settings:AddDropdown("V11_Position", {
         Title = "Attack Position",
-        Description = "Below uses a shared 8-stud gap in every mode. Other positions use Enemy Distance.",
+        Description = "Applies to Raids and Zzz World. Trial uses a fixed position below each target.",
         Values = {"Behind", "Above", "Inside", "Below", "Front", "Left", "Right"},
-        Default = "Below",
+        Default = "Behind",
         Callback = function(value) C.Position = value end
     })
     Settings:AddSlider("V11_Distance", {
-        Title = "Enemy Distance (studs)", Description = "Applies to non-Below positions. Below and Trial use the shared 8-stud gap.", Min = 1, Max = 50,
+        Title = "Enemy Distance (studs)", Description = "Distance for Raids and Zzz World; Trial always uses a fixed 8-stud gap.", Min = 1, Max = 50,
         Default = 12, Rounding = 1,
         Callback = function(value) C.Distance = value end
     })
