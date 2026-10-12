@@ -293,8 +293,7 @@ return function(ctx)
                 end
 
                 local finished
-                if replayMode == "Zzz" then
-                    local status, travelStatus
+                local status, travelStatus
                     if ctx.ReadMatchStatus then
                         local ok, value, _, travel = pcall(ctx.ReadMatchStatus)
                         if ok then
@@ -353,13 +352,11 @@ return function(ctx)
                             remote:FireServer(1)
                         end)
                         if ok then
-                            if replayMode == "Zzz" then
-                                infiniteAttempts += 1
-                                Zzzz.Status = "Retry requested (" 
-                                    .. tostring(infiniteAttempts) .. "); waiting for next round"
-                                if infiniteAttempts % 10 == 0 then
-                                    warn("[Slow Hub] Zzz World is still waiting for a new round; retrying")
-                                end
+                            infiniteAttempts += 1
+                            Zzzz.Status = "Retry requested ("
+                                .. tostring(infiniteAttempts) .. "); waiting for next round"
+                            if infiniteAttempts % 10 == 0 then
+                                warn("[Slow Hub] Zzz World is still waiting for a new round; retrying")
                             end
                         elseif now - lastReplayWarnAt >= 12 then
                             lastReplayWarnAt = now
