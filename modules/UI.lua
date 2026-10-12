@@ -26,7 +26,7 @@ return function(ctx)
 
     local Raids = Window:AddTab({Title = "Raids", Icon = "swords"})
     local ZzzzTab = Window:AddTab({Title = "Zzz World", Icon = "infinity"})
-    local LiftTab = Window:AddTab({Title = "Lift", Icon = "arrow-up-down"})
+    local LiftTab = Window:AddTab({Title = "Trial", Icon = "arrow-up-down"})
     local Combat = Window:AddTab({Title = "Combat", Icon = "flame"})
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
     local Webhooks = Window:AddTab({Title = "Webhooks", Icon = "bell"})
@@ -191,10 +191,10 @@ return function(ctx)
         end
     })
 
-    LiftTab:AddSection("Endless Lift Waves")
+    LiftTab:AddSection("Endless Trial Floors")
     LiftTab:AddToggle("AnimeZero_LiftAutoNextFloor", {
         Title = "Auto Next Floor",
-        Description = "Requests the next floor after all enemies are cleared.",
+        Description = "Advances to the next floor after the current floor is cleared.",
         Default = true,
         Callback = function(value)
             Lift.AutoNextFloor = value
@@ -206,8 +206,8 @@ return function(ctx)
     })
 
     liftToggle = LiftTab:AddToggle("AnimeZero_LiftAutoFarm", {
-        Title = "Lift Auto Farm",
-        Description = "Fights from a safe ground position and advances after each floor is cleared.",
+        Title = "Trial Auto Farm",
+        Description = "Maintains a fixed 8-stud gap below each enemy part and advances after the floor is cleared.",
         Default = false,
         Callback = function(value)
             if value then
@@ -286,8 +286,8 @@ return function(ctx)
         until os.clock() >= deadline
 
         Fluent:Notify({
-            Title = "Lift Auto Farm",
-            Content = "The Lift prompt was not detected. Enable the farm manually when the mode is ready.",
+            Title = "Trial Auto Farm",
+            Content = "The Trial interaction was not detected. Enable the farm manually when the mode is ready.",
             Duration = 6
         })
     end)
@@ -308,7 +308,7 @@ return function(ctx)
     Combat:AddSection("Skill Automation")
 
     Combat:AddToggle("V11_AutoSkills", {
-        Title = "Auto Skills", Description = "Automatically activates enabled skills when available.", Default = true,
+        Title = "Auto Skills", Description = "Sends inputs for enabled skills using their configured intervals.", Default = true,
         Callback = function(value) C.Skills = value end
     })
     Combat:AddToggle("V11_SkillsOnRubble", {
@@ -329,7 +329,7 @@ return function(ctx)
             Callback = function(value) skill.Enabled = value end
         })
         section:AddSlider("V11_SkillDelay" .. index, {
-            Title = "Skill Cooldown Interval (s)", Min = 0.1, Max = 10,
+            Title = "Skill Input Interval (s)", Description = "Minimum time between activation attempts for this skill.", Min = 0.1, Max = 10,
             Default = skill.Delay, Rounding = 2,
             Callback = function(value) skill.Delay = value end
         })
@@ -339,7 +339,7 @@ return function(ctx)
 
     Settings:AddToggle("Stable_AutoReplay", {
         Title = "Auto Replay",
-        Description = "Automatically starts the next run when the current match ends.",
+        Description = "Requests another run when Raids or Zzz World reaches its result screen.",
         Default = true,
         Callback = function(value) C.AutoReplay = value end
     })
@@ -348,13 +348,13 @@ return function(ctx)
 
     Settings:AddDropdown("V11_Position", {
         Title = "Attack Position",
-        Description = "Choose where your character stays relative to the target.",
+        Description = "Applies to Raids and Zzz World. Trial uses a fixed position below each target.",
         Values = {"Behind", "Above", "Inside", "Below", "Front", "Left", "Right"},
-        Default = "Below",
+        Default = "Behind",
         Callback = function(value) C.Position = value end
     })
     Settings:AddSlider("V11_Distance", {
-        Title = "Enemy Distance (studs)", Description = "Distance used for NPC targets.", Min = 1, Max = 50,
+        Title = "Enemy Distance (studs)", Description = "Distance for Raids and Zzz World; Trial always uses a fixed 8-stud gap.", Min = 1, Max = 50,
         Default = 12, Rounding = 1,
         Callback = function(value) C.Distance = value end
     })
