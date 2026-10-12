@@ -1,5 +1,5 @@
 return function(ctx)
-
+    local S = ctx.S
     local Fluent, Profiles, Window = ctx.Fluent, ctx.Profiles, ctx.Window
     local SaveManager = Fluent.SaveManager
     local InterfaceManager = Fluent.InterfaceManager
