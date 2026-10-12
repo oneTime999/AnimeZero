@@ -19,9 +19,8 @@ local VIM
 pcall(function() VIM = game:GetService("VirtualInputManager") end)
 
 local C = {
-    Position = "Below",
+    Position = "Behind",
     Distance = 12,
-    BelowAttackGap = 8,
     Height = 0,
     M1Interval = 0.2,
     ConfirmClear = 1.0,
@@ -63,6 +62,7 @@ local Lift = {
     NextPromptAt = 0,
     PromptAttempts = 0,
     AutoNextFloor = true,
+    AttackGap = 8,
     HadEnemies = false,
     EmptySince = nil,
     WaitingForWave = false,
