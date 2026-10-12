@@ -1,6 +1,6 @@
 return function(ctx)
     local WS, RS = ctx.WS, ctx.RS
-    local Lift, S, C = ctx.Lift, ctx.S, ctx.C
+    local Lift, S = ctx.Lift, ctx.S
     local F = ctx.Functions
     local Player = ctx.Player
 
@@ -46,7 +46,7 @@ return function(ctx)
         end
         -- Trial uses the same gap on every client, independent of saved
         -- Enemy Distance settings. The gap is measured below the target part.
-        return F.enemyPosition(target, "Below", C.BelowAttackGap, 0)
+        return F.enemyPosition(target, "Below", Lift.AttackGap, 0)
     end
 
     local function restoreAfterBump()
@@ -108,7 +108,7 @@ return function(ctx)
         end)
         if not ok then
             Lift.NextFloorBusy = false
-            Lift.Status = "Next-floor request failed: " .. tostring(err)
+            Lift.Status = "Next Floor request failed: " .. tostring(err)
             return false
         end
 
@@ -117,7 +117,7 @@ return function(ctx)
         Lift.HadEnemies = false
         Lift.EmptySince = nil
         task.spawn(function()
-            -- Keep the character at the Trial interaction prompt until the next wave is detected.
+            -- Keep the character at the Lift prompt until the next wave is detected.
             -- Moving away immediately can interrupt the transition and cause wave bugs.
             if not Lift.PromptHolding then
                 bumpAndSettle()
@@ -144,7 +144,7 @@ return function(ctx)
         return ok
     end
 
-    local function fallbackToTrial(lift, prompt)
+    local function fallbackToLift(lift, prompt)
         local part = lift and (lift:IsA("BasePart") and lift or lift:FindFirstChildWhichIsA("BasePart", true))
         if not part then
             Lift.Status = "Trial interaction has no usable part"
@@ -152,7 +152,7 @@ return function(ctx)
         end
 
         local goal = part.CFrame + Vector3.new(0, 2.5, 0)
-        local arrived = F.travelTo(goal, "TrialPrompt")
+        local arrived = F.travelTo(goal, "LiftPrompt")
         if not arrived then
             Lift.Status = "Moving to Trial interaction"
             return
@@ -236,7 +236,7 @@ return function(ctx)
             end
 
             -- Reach and activate Interact before requesting the next floor.
-            local activated = fallbackToTrial(lift, prompt)
+            local activated = fallbackToLift(lift, prompt)
             if activated then
                 if Lift.AutoNextFloor then
                     fireNextFloor()
@@ -255,6 +255,6 @@ return function(ctx)
             return
         end
 
-        fallbackToTrial(lift, prompt)
+        fallbackToLift(lift, prompt)
     end
 end
