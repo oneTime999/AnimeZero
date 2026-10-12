@@ -9,7 +9,7 @@ return function(ctx)
         Story = {Name = "HxH Story", Value = "hxh"},
         Raids = {Name = "Shadow Monarch", Value = "sololevelingraid"},
         Zzz = {Name = "Zzz World", Value = "infinite"},
-        Lift = {Name = "Endless Lift", Value = "lift"}
+        Lift = {Name = "Endless Trial", Value = "lift"}
     }
 
     local function currentMode()
@@ -76,7 +76,7 @@ return function(ctx)
             local markers = world and world:FindFirstChild("Markers")
             local lift = markers and markers:FindFirstChild("Lift")
             if not lift or not lift:FindFirstChildWhichIsA("ProximityPrompt", true) then
-                return "Enter the Endless Lift mode before enabling this farm"
+                return "Enter the Endless Trial mode before enabling this farm"
             end
             return "Allowed"
         end
