@@ -52,7 +52,7 @@ return function(ctx)
         for _, entry in ipairs({
             {Key = "Raids", State = Raid, Toggle = raidToggle},
             {Key = "Zzz", State = Zzzz, Toggle = zzzzToggle},
-            {Key = "Lift", State = Lift, Toggle = liftToggle}
+            {Key = "Lift", State = Lift, Toggle = trialToggle}
         }) do
             if entry.State.Enabled and not Guard.Allowed(entry.Key) then
                 invalidSince[entry.Key] = invalidSince[entry.Key] or os.clock()
@@ -90,7 +90,7 @@ return function(ctx)
         if selected ~= "Lift" then
             Lift.Enabled = false
             Lift.Target = nil
-            if liftToggle and liftToggle.Value then liftToggle:SetValue(false) end
+            if trialToggle and trialToggle.Value then trialToggle:SetValue(false) end
         end
 
         if selected ~= "Zzz" then
@@ -188,8 +188,8 @@ return function(ctx)
         end
     })
 
-    LiftTab:AddSection("Endless Trial Floors")
-    LiftTab:AddToggle("AnimeZero_LiftAutoNextFloor", {
+    TrialTab:AddSection("Endless Trial Floors")
+    TrialTab:AddToggle("AnimeZero_LiftAutoNextFloor", {
         Title = "Auto Next Floor",
         Description = "Requests the next Trial floor automatically after enemies are cleared.",
         Default = true,
@@ -202,7 +202,7 @@ return function(ctx)
         end
     })
 
-    liftToggle = LiftTab:AddToggle("AnimeZero_LiftAutoFarm", {
+    trialToggle = TrialTab:AddToggle("AnimeZero_LiftAutoFarm", {
         Title = "Trial Auto Farm",
         Description = "Maintains a fixed 8-stud gap below each enemy part and advances after the floor is cleared.",
         Default = false,
@@ -257,7 +257,7 @@ return function(ctx)
     -- Restore the saved Lift toggle preference; execution remains place-guarded.
     task.spawn(function()
         if game.GameId ~= 10512942223 or game.PlaceId ~= 109151342576374 then
-            if liftToggle and liftToggle.Value then
+            if trialToggle and trialToggle.Value then
                 Lift.Enabled = false
                 Lift.Status = "Saved, waiting for Lift place"
             end
@@ -271,11 +271,11 @@ return function(ctx)
             local markers = world and world:FindFirstChild("Markers")
             local lift = markers and markers:FindFirstChild("Lift")
             local prompt = lift and lift:FindFirstChildWhichIsA("ProximityPrompt", true)
-            if prompt and liftToggle then
+            if prompt and trialToggle then
                 task.wait(1)
                 if not S.Alive or Fluent.Unloaded then return end
-                if not liftToggle.Value then
-                    liftToggle:SetValue(true)
+                if not trialToggle.Value then
+                    trialToggle:SetValue(true)
                 end
                 return
             end
