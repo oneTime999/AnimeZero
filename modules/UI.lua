@@ -294,7 +294,7 @@ return function(ctx)
 
     Combat:AddToggle("V11_M1", {
         Title = "Auto Basic Attack (M1)",
-        Description = "Repeats basic attacks at the selected interval.", Default = true,
+        Description = "Sends basic attack requests using the selected minimum delay.", Default = true,
         Callback = function(value) C.M1 = value end
     })
     Combat:AddSlider("V11_M1Delay", {
@@ -338,6 +338,13 @@ return function(ctx)
         Callback = function(value) C.AutoReplay = value end
     })
 
+    Settings:AddToggle("Stable_AutoCollectDrops", {
+        Title = "Auto Collect Drops",
+        Description = "Automatically requests drop collection while a farm mode is active.",
+        Default = false,
+        Callback = function(value) C.AutoCollectDrops = value end
+    })
+
     Settings:AddSection("Combat Positioning")
 
     Settings:AddDropdown("V11_Position", {
@@ -353,7 +360,7 @@ return function(ctx)
         Callback = function(value) C.Distance = value end
     })
     Settings:AddToggle("V11_Noclip", {
-        Title = "Noclip", Description = "Temporarily passes through obstacles during movement.", Default = true,
+        Title = "Noclip", Description = "Disables character collisions while an automation mode is active.", Default = true,
         Callback = function(value)
             C.Noclip = value
             if not value then
