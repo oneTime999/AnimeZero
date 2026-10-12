@@ -1,7 +1,6 @@
 return function(ctx)
     local S, C, Raid, Zzzz = ctx.S, ctx.C, ctx.Raid, ctx.ZzzzWorld
     local Player, F = ctx.Player, ctx.Functions
-    local WaveCoordinates = ctx.WaveCoordinates
     local Fluent = ctx.Fluent
     local Monitor = ctx.FarmMonitor
     local Guard = ctx.GameGuard
@@ -16,7 +15,7 @@ return function(ctx)
     local FINAL_GAP = 90
     local ACTION_GAP = 15
 
-    local mode, activeSince, lastCharacter, lastArea = nil, 0, nil, nil
+    local mode, activeSince, lastCharacter = nil, 0, nil
     local startPosition, emptySince, fallSince = nil, nil, nil
     local lastDamageAt, lastSpawnAt = os.clock(), nil
     local lastHealth = setmetatable({}, {__mode = "k"})
@@ -27,17 +26,12 @@ return function(ctx)
     local warnedAfterFinal = false
 
     local function selectedFarm()
-        if S.Enabled then return "Story" end
         if Raid.Enabled then return "Raid" end
         if Zzzz.Enabled then return "Zzz" end
         return nil
     end
 
     local function onResult(selected)
-        if selected == "Story" and
-            (S.Phase == "COMPLETED" or S.Phase == "FINAL_TELEPORT") then
-            return true
-        end
         if selected == "Raid" and Raid.RoundFinished then
             return true
         end
@@ -57,17 +51,6 @@ return function(ctx)
     end
 
     local function safePosition(selected, root)
-        if selected == "Story" then
-            local area = WaveCoordinates[S.BorderNumber]
-            local point = area and area[1]
-            if not point then
-                local first = WaveCoordinates[C.FirstBorder]
-                point = first and first[1]
-            end
-            if point then
-                return CFrame.new(point + Vector3.new(0, 3, 0))
-            end
-        end
         -- Raid and Zzz have no validated map-wide spawn coordinates.
         -- Use the recorded starting point, updated upon respawn.
         return startPosition
@@ -79,13 +62,7 @@ return function(ctx)
         if F.resetSkillQueue then F.resetSkillQueue() end
         S.LastM1 = 0
 
-        if selected == "Story" then
-            S.Target = nil
-            S.BossTarget = nil
-            S.TargetProgress = setmetatable({}, {__mode = "k"})
-            S.Ignored = {}
-            S.StoryPositionFailedAt = nil
-        elseif selected == "Raid" then
+        if selected == "Raid" then
             Raid.Target = nil
             Raid.BossGoneAt = nil
         else
@@ -118,14 +95,7 @@ return function(ctx)
             moved = F.setPosition(destination, 0.6, false)
         end
 
-        if level == 3 and selected == "Story" then
-            local ok, recovered = pcall(F.recoverStory,
-                "watchdog: " .. reason, false)
-            if not ok or not recovered then
-                Monitor.LastError = "Story recovery failed"
-                Monitor.LastErrorAt = now
-            end
-        elseif level == 3 and selected == "Raid" then
+        if level == 3 and selected == "Raid" then
             -- Refresh targeting without falsifying a finished match.
             Raid.BossGoneAt = nil
             Raid.NextReplayAt = 0
@@ -153,10 +123,7 @@ return function(ctx)
             mode = selected
             activeSince = now
             lastCharacter = char
-            lastArea = selected == "Story"
-                and (tostring(S.BorderNumber) .. "/" .. tostring(S.SubWave))
-                or nil
-            startPosition = selected and selected ~= "Story" and root
+            startPosition = selected and root
                 and CFrame.new(root.Position + Vector3.new(0, 3, 0))
                 or nil
             lastSpawnAt = nil
@@ -180,21 +147,12 @@ return function(ctx)
         end
         if char ~= lastCharacter then
             lastCharacter = char
-            if selected ~= "Story" then
-                startPosition = CFrame.new(root.Position + Vector3.new(0, 3, 0))
-            end
+            startPosition = CFrame.new(root.Position + Vector3.new(0, 3, 0))
             activeSince = now
             resetProgress(now)
         end
 
-        if selected == "Story" then
-            local area = tostring(S.BorderNumber) .. "/" .. tostring(S.SubWave)
-            if area ~= lastArea then
-                lastArea = area
-                activeSince = now
-                resetProgress(now)
-            end
-        elseif not startPosition then
+        if not startPosition then
             startPosition = CFrame.new(root.Position + Vector3.new(0, 3, 0))
         end
 
@@ -245,9 +203,6 @@ return function(ctx)
                 if npc:IsA("Model") then track(npc) end
             end
         end
-        if selected == "Story" and S.Phase == "KILL_BOSS" then
-            track(S.BossTarget)
-        end
         for npc in pairs(lastHealth) do
             if not seen[npc] then lastHealth[npc] = nil end
         end
@@ -273,10 +228,7 @@ return function(ctx)
         end
         lastNPCCount = npcs
 
-        local waitingForMobs = selected ~= "Story"
-            or S.Phase == "WAIT_ENEMIES" or S.Phase == "WAIT_SECOND_WAVE"
-            or S.Phase == "WAIT_BOSS" or S.Phase == "KILL_ENEMIES"
-            or S.Phase == "KILL_BOSS"
+        local waitingForMobs = true
         local onlyImmuneBoss = selected == "Raid" and Raid.BossImmune
             and Raid.BossPresent and npcs == 1
 
@@ -291,8 +243,7 @@ return function(ctx)
             return
         end
 
-        local noMobDelay = selected == "Story" and S.Phase == "WAIT_BOSS"
-            and 65 or (selected == "Zzz" and 45 or EMPTY_DELAY)
+        local noMobDelay = selected == "Zzz" and 45 or EMPTY_DELAY
         local cause, elapsed, threshold
         if emptySince then
             cause = "no NPCs"
