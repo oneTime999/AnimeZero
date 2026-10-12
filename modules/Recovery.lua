@@ -1,5 +1,5 @@
 return function(ctx)
-    local S, Raid, Zzzz = ctx.S, ctx.Raid, ctx.ZzzzWorld
+    local S, C, Raid, Zzzz = ctx.S, ctx.C, ctx.Raid, ctx.ZzzzWorld
     local Player, F = ctx.Player, ctx.Functions
     local Fluent = ctx.Fluent
     local Monitor = ctx.FarmMonitor
@@ -50,7 +50,7 @@ return function(ctx)
         Monitor.RecoveryStage = 0
     end
 
-    local function safePosition()
+    local function safePosition(selected, root)
         -- Raid and Zzz have no validated map-wide spawn coordinates.
         -- Use the recorded starting point, updated upon respawn.
         return startPosition
@@ -81,7 +81,7 @@ return function(ctx)
         end
         if now - lastActionAt < ACTION_GAP then return false end
 
-        local destination = safePosition()
+        local destination = safePosition(selected, root)
         if level >= 2 and not destination then
             Monitor.State = "Waiting for a safe position"
             return false
@@ -162,7 +162,7 @@ return function(ctx)
             return
         end
 
-        local position = safePosition()
+        local position = safePosition(selected, root)
         if position and root.Position.Y < position.Position.Y - 75 then
             fallSince = fallSince or now
         else
