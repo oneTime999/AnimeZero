@@ -2,8 +2,6 @@ return function(ctx)
     local Players, RS, WS, RunService, VU = ctx.Players, ctx.RS, ctx.WS, ctx.RunService, ctx.VU
     local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
-    local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
-    local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
 
     function F.cancelTravel()
@@ -83,7 +81,7 @@ return function(ctx)
         if not char or not root then return end
         local now = os.clock()
         -- Recover if the server keeps rejecting the tween destination.
-        -- Otherwise a stale S.Travel can block Story indefinitely.
+        -- Discard stale travel state so it cannot block later movement.
         if now - trip.Started > trip.Duration + 5 then
             S.Travel = nil
             S.ArrivedTag = nil
@@ -198,114 +196,9 @@ return function(ctx)
         return F.setPosition(destination, 0.25, true)
     end
 
-    function F.rubbleBounds(rubble)
-        if not rubble then return end
-        if rubble:IsA("Model") then
-            local found = rubble:FindFirstChildWhichIsA("BasePart", true)
-            if not found then return end
-            return rubble:GetBoundingBox()
-        elseif rubble:IsA("BasePart") then
-            return rubble.CFrame, rubble.Size
-        elseif rubble:IsA("Folder") then
-            local low, high
-            for _, part in ipairs(rubble:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    local center, half = part.Position, part.Size * 0.5
-                    local a, b = center - half, center + half
-                    low = low and Vector3.new(math.min(low.X, a.X), math.min(low.Y, a.Y), math.min(low.Z, a.Z)) or a
-                    high = high and Vector3.new(math.max(high.X, b.X), math.max(high.Y, b.Y), math.max(high.Z, b.Z)) or b
-                end
-            end
-            if low then return CFrame.new((low + high) * 0.5), high - low end
-        end
-    end
-
-    function F.rubblePart(rubble)
-        if not rubble or not rubble:IsDescendantOf(WS) then return nil end
-        if rubble:IsA("BasePart") then return rubble end
-        if rubble:IsA("Model") and rubble.PrimaryPart then
-            return rubble.PrimaryPart
-        end
-
-        for _, preferred in ipairs({"Hitbox", "Main", "Rock", "Rubble", "Root"}) do
-            local candidate = rubble:FindFirstChild(preferred, true)
-            if candidate and candidate:IsA("BasePart") then return candidate end
-        end
-
-        local largest, size = nil, -1
-        for _, descendant in ipairs(rubble:GetDescendants()) do
-            if descendant:IsA("BasePart") then
-                local d = descendant.Size
-                local volume = d.X * d.Y * d.Z
-                if volume > size then
-                    largest, size = descendant, volume
-                end
-            end
-        end
-        return largest
-    end
-
-    function F.rubbleCFrame(rubble)
-        -- Resolve the active barrier directly from World.Map.BorderN.Rubble.
-        local world = WS:FindFirstChild("World")
-        local map = world and world:FindFirstChild("Map")
-        local border = map and map:FindFirstChild("Border" .. tostring(S.BorderNumber))
-        local borderRubble = border and border:FindFirstChild("Rubble")
-        if borderRubble and borderRubble:IsDescendantOf(WS) then
-            rubble = borderRubble
-        end
-
-        local main = F.rubblePart(rubble)
-        -- Prefer the explicit per-border coordinates configured in Core.lua.
-        local dest = RubbleCoordinates[S.BorderNumber] or (main and main.Position)
-        if not dest then return nil end
-        -- Keep rubble spacing horizontal. Subtracting studs from Y made low
-        -- barriers place the character below the platform/map.
-        if S.Enabled and S.Phase == "BREAK_RUBBLE" and C.Noclip then
-            local origin = main and main.Position or dest
-            local horizontal = Vector3.new(dest.X - origin.X, 0, dest.Z - origin.Z)
-            if horizontal.Magnitude < 0.05 then
-                local _, root = F.character()
-                if root then
-                    horizontal = Vector3.new(root.Position.X - origin.X, 0, root.Position.Z - origin.Z)
-                end
-            end
-            if horizontal.Magnitude < 0.05 then
-                horizontal = Vector3.new(0, 0, 1)
-            end
-            horizontal = horizontal.Unit
-            dest = Vector3.new(
-                origin.X + horizontal.X * (C.RubbleDistance or 8),
-                dest.Y,
-                origin.Z + horizontal.Z * (C.RubbleDistance or 8)
-            )
-        elseif C.RubblePosition == "Above" or not C.Noclip then
-            local cf, size = F.rubbleBounds(rubble)
-            local safeY = dest.Y + C.RubbleAboveGap
-            if cf then
-                local halfY = math.abs(cf.RightVector.Y) * size.X / 2
-                    + math.abs(cf.UpVector.Y) * size.Y / 2
-                    + math.abs(cf.LookVector.Y) * size.Z / 2
-                safeY = math.max(safeY, cf.Position.Y + halfY + C.RubbleAboveGap)
-            end
-            dest = Vector3.new(dest.X, safeY, dest.Z)
-        end
-        local face = main and main.Position or dest + Vector3.new(0, 0, -1)
-        local look = Vector3.new(face.X, dest.Y, face.Z)
-        if (look - dest).Magnitude < 0.05 then
-            look = dest + Vector3.new(0, 0, -1)
-        end
-        return CFrame.lookAt(dest, look)
-    end
-
-    function F.rubblePosition(rubble)
-        local cf = F.rubbleCFrame(rubble)
-        return cf and F.setPosition(cf, 0.35, C.LockOnRubble) or false
-    end
-
     function F.applyNoclip()
         local Lift = ctx.Lift
-        if not (S.Enabled or Raid.Enabled or ctx.ZzzzWorld.Enabled or (Lift and Lift.Enabled))
+        if not (Raid.Enabled or ctx.ZzzzWorld.Enabled or (Lift and Lift.Enabled))
             or not C.Noclip then
             return
         end
