@@ -23,13 +23,26 @@ return function(ctx)
         if now < (Raid.NextReplayAt or 0) then return end
         Raid.NextReplayAt = now + 8
 
-        local remote = RS:FindFirstChild("endAction")
+        -- The current Retry event is nested under runPackets.endAction.
+        -- Preserve the root-level buffer call only as a compatibility fallback.
+        local packets = RS:FindFirstChild("runPackets")
+        local remote = packets and packets:FindFirstChild("endAction")
+        local nestedRemote = remote ~= nil
+        if not remote then
+            remote = RS:FindFirstChild("endAction")
+        end
         if not remote or not remote:IsA("RemoteEvent") then
             Raid.Status = "Waiting for replay remote"
             return
         end
         local ok = pcall(function()
-            remote:FireServer(buffer.fromstring("\001"))
+            if nestedRemote then
+                remote:FireServer(1)
+            elseif buffer and type(buffer.fromstring) == "function" then
+                remote:FireServer(buffer.fromstring("\\001"))
+            else
+                remote:FireServer(1)
+            end
         end)
 
         if ok then
