@@ -45,16 +45,5 @@ return function(ctx)
         return WS:FindFirstChild("enemies")
     end
 
-    function F.livingEnemyExists()
-        local folder = F.enemyFolder()
-        if not folder then return false end
-        for _, model in ipairs(folder:GetChildren()) do
-            if F.living(model) then
-                return true
-            end
-        end
-        return false
-    end
-
 
 end
