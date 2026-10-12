@@ -2,8 +2,6 @@ return function(ctx)
     local Players, RS, WS, RunService, VU = ctx.Players, ctx.RS, ctx.WS, ctx.RunService, ctx.VU
     local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
-    local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
-    local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
 
     function F.getRaidBossTag()
@@ -59,7 +57,7 @@ return function(ctx)
     end
 
     function F.raidStep()
-        if not Raid.Enabled or S.Enabled then return end
+        if not Raid.Enabled then return end
 
         local now = os.clock()
         -- Detect both wins and losses before waiting for a respawn.
