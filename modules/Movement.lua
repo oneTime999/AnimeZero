@@ -253,10 +253,12 @@ return function(ctx)
 
         local main = F.rubblePart(rubble)
         -- Prefer the explicit per-border coordinates configured in Core.lua.
-        -- Do not subtract Distance here: that sent Story downward after each wave.
         local dest = RubbleCoordinates[S.BorderNumber] or (main and main.Position)
         if not dest then return nil end
-        if C.RubblePosition == "Above" or not C.Noclip then
+        -- Apply the separate rubble offset only while Story is actively breaking a barrier.
+        if S.Enabled and S.Phase == "BREAK_RUBBLE" and C.Noclip then
+            dest = Vector3.new(dest.X, dest.Y - (C.RubbleDistance or 0), dest.Z)
+        elseif C.RubblePosition == "Above" or not C.Noclip then
             local cf, size = F.rubbleBounds(rubble)
             local safeY = dest.Y + C.RubbleAboveGap
             if cf then
