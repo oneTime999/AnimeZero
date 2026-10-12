@@ -124,7 +124,7 @@ return function(ctx)
 
     raidToggle = Raids:AddToggle("HxH_ShadowMonarchRaid", {
         Title = "Shadow Monarch Raid",
-        Description = "Automates combat during Shadow Monarch raids.",
+        Description = "Clears raid enemies and attacks the boss when it is vulnerable.",
         Default = false,
         Callback = function(value)
             if value and denyActivation("Raids", raidToggle) then return end
@@ -162,7 +162,7 @@ return function(ctx)
 
     zzzzToggle = ZzzzTab:AddToggle("HxH_ZzzzWorld", {
         Title = "Zzz World Auto Farm",
-        Description = "Automatically handles enemies across Infinite Waves.",
+        Description = "Attacks enemies in Infinite Waves and retries target selection if combat stalls.",
         Default = false,
         Callback = function(value)
             if value and denyActivation("Zzz", zzzzToggle) then return end
@@ -194,7 +194,7 @@ return function(ctx)
     LiftTab:AddSection("Endless Trial Floors")
     LiftTab:AddToggle("AnimeZero_LiftAutoNextFloor", {
         Title = "Auto Next Floor",
-        Description = "Advances to the next floor after the current floor is cleared.",
+        Description = "Requests the next Trial floor automatically after enemies are cleared.",
         Default = true,
         Callback = function(value)
             Lift.AutoNextFloor = value
@@ -216,7 +216,7 @@ return function(ctx)
                 if not Guard.Allowed("Lift") then
                     Lift.Enabled = false
                     Lift.Target = nil
-                    Lift.Status = "Saved, waiting for Lift place"
+                    Lift.Status = "Saved, waiting for Trial mode"
                     return
                 end
                 local world = WS:FindFirstChild("World")
@@ -226,13 +226,13 @@ return function(ctx)
                 if not prompt then
                     Lift.Enabled = false
                     Lift.Target = nil
-                    Lift.Status = "Waiting for Lift prompt"
+                    Lift.Status = "Waiting for Trial interaction"
                     return
                 end
                 switchToMode("Lift")
                 Lift.Enabled = true
                 Lift.Target = nil
-                Lift.Status = "Starting Lift farm"
+                Lift.Status = "Starting Trial farm"
                 Lift.NextPromptAt = 0
                 Lift.PromptAttempts = 0
                 Lift.PromptHolding = false
