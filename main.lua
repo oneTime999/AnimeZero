@@ -36,7 +36,7 @@ end
 
 local ctx = loadModule("Core")
 local modules = {
-    "GameGuard", "Enemies", "Movement", "Skills", "Rubble", "Raids",
+    "GameGuard", "Enemies", "Movement", "Skills", "Raids",
     "ZzzzWorld", "Lift", "UI", "RunRewards", "Webhook", "Profiles", "Runtime", "Recovery", "Developer"
 }
 
