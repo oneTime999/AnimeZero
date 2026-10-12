@@ -255,6 +255,6 @@ return function(ctx)
             return
         end
 
-        fallbackToLift(lift, prompt)
+        fallbackToTrial(lift, prompt)
     end
 end
