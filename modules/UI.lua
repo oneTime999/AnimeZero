@@ -1,5 +1,6 @@
 return function(ctx)
-    local WS = ctx.WS
+    local Players, RS, WS, RunService, VU = ctx.Players, ctx.RS, ctx.WS, ctx.RunService, ctx.VU
+    local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
     local Zzzz = ctx.ZzzzWorld
     local Lift = ctx.Lift
@@ -388,70 +389,6 @@ return function(ctx)
         Title = "Anti-AFK", Description = "Helps prevent idle disconnection.", Default = true,
         Callback = function(value) C.AFK = value end
     })
-
-    Settings:AddSection("Live Status")
-    local matchLine = Settings:AddParagraph({
-        Title = "Detected Mode",
-        Content = Guard.ModeName()
-    })
-    local statusLine = Settings:AddParagraph({
-        Title = "Automation Status", Content = "Ready when a farm is enabled"
-    })
-    local activityLine = Settings:AddParagraph({
-        Title = "Activity", Content = "Enemies detected: 0"
-    })
-    local recoveryLine = Settings:AddParagraph({
-        Title = "Recovery", Content = "No recovery action required"
-    })
-    local errorLine = Settings:AddParagraph({
-        Title = "Latest Error", Content = "No errors reported"
-    })
-
-    local function age(at)
-        if type(at) ~= "number" then return "Never" end
-        local elapsed = math.max(0, math.floor(os.clock() - at))
-        if elapsed < 60 then return elapsed .. "s ago" end
-        if elapsed < 3600 then return math.floor(elapsed / 60) .. "m ago" end
-        return math.floor(elapsed / 3600) .. "h ago"
-    end
-
-    local lastDescriptions = {}
-    local function display(element, key, value)
-        if lastDescriptions[key] ~= value then
-            lastDescriptions[key] = value
-            if element and type(element.SetDesc) == "function" then
-                element:SetDesc(value)
-            end
-        end
-    end
-
-    task.spawn(function()
-        while S.Alive and not Fluent.Unloaded do
-            local data = ctx.FarmMonitor
-            if data then
-                local ok, err = pcall(function()
-                    display(matchLine, "match",
-                        Guard.ModeName())
-                    display(statusLine, "status",
-                        tostring(data.Mode or "Off") .. " - " .. tostring(data.State or "Idle"))
-                    display(activityLine, "activity",
-                        "Enemies: " .. tostring(data.NPCs or 0)
-                        .. " | Last damage: " .. age(data.LastDamageAt)
-                        .. " | Last spawn: " .. age(data.LastSpawnAt))
-                    display(recoveryLine, "recovery",
-                        "Stage: " .. tostring(data.RecoveryStage or 0) .. "/3"
-                        .. " | Recoveries: " .. tostring(data.Recoveries or 0)
-                        .. " | Last: " .. tostring(data.LastReason or "None"))
-                    display(errorLine, "error", tostring(data.LastError or "None"))
-                end)
-                if not ok then
-                    warn("[Slow Hub] Farm monitor UI: " .. tostring(err))
-                    break
-                end
-            end
-            task.wait(2)
-        end
-    end)
 
     ctx.Fluent = Fluent
     ctx.Window = Window
