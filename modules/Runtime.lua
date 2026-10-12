@@ -146,7 +146,7 @@ return function(ctx)
             Raid.Status = "Retrying Raid after an error"
         elseif mode == "Zzz" then
             Zzzz.Status = "Retrying Zzz World after an error"
-        elseif mode == "Lift" then
+        elseif mode == "Trial" then
             Lift.Status = "Retrying Trial after an error"
         end
         if now - (lastStepErrorAt[mode] or -math.huge) >= 12 then
@@ -177,7 +177,7 @@ return function(ctx)
                 safeStep("Zzz", F.zzzzStep)
             end
             if Lift.Enabled then
-                safeStep("Lift", F.liftStep)
+                safeStep("Trial", F.liftStep)
             end
             task.wait(0.05)
         end
