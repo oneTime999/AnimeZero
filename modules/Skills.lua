@@ -3,13 +3,11 @@ return function(ctx)
     local Player, Env, VIM = ctx.Player, ctx.Env, ctx.VIM
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
     local Zzzz = ctx.ZzzzWorld
-    local RubbleCoordinates, WaveCoordinates = ctx.RubbleCoordinates, ctx.WaveCoordinates
-    local LastBorder, LastEnemyWave = ctx.LastBorder, ctx.LastEnemyWave
     local F = ctx.Functions
 
 
     function F.attackM1()
-        if not C.M1 or not (S.Enabled or Raid.Enabled or Zzzz.Enabled or (ctx.Lift and ctx.Lift.Enabled)) then return end
+        if not C.M1 or not (Raid.Enabled or Zzzz.Enabled or (ctx.Lift and ctx.Lift.Enabled)) then return end
         local now = os.clock()
         if now - S.LastM1 < C.M1Interval then return end
         local remote = RS:FindFirstChild("performM1")
