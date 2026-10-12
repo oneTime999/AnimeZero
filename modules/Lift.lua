@@ -1,6 +1,6 @@
 return function(ctx)
     local WS, RS = ctx.WS, ctx.RS
-    local Lift, S = ctx.Lift, ctx.S
+    local Lift, S, C = ctx.Lift, ctx.S, ctx.C
     local F = ctx.Functions
     local Player = ctx.Player
 
@@ -46,7 +46,7 @@ return function(ctx)
         end
         -- Trial uses the same gap on every client, independent of saved
         -- Enemy Distance settings. The gap is measured below the target part.
-        return F.enemyPosition(target, "Below", Lift.AttackGap, 0)
+        return F.enemyPosition(target, "Below", C.BelowAttackGap, 0)
     end
 
     local function restoreAfterBump()
