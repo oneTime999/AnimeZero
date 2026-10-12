@@ -48,14 +48,8 @@ return function(ctx)
     function F.raidStep()
         if not Raid.Enabled or S.Enabled then return end
 
-        if not F.character() then
-            F.releaseHold()
-            Raid.Status = "Waiting for character"
-            return
-        end
-
         local now = os.clock()
-        -- Detect both wins and losses, including deaths before boss engagement.
+        -- Detect both wins and losses before waiting for a respawn.
         local gui = Player:FindFirstChildOfClass("PlayerGui")
         local endScreen = gui and gui:FindFirstChild("EndScreen")
         local resultVisible = endScreen and endScreen:IsA("ScreenGui") and endScreen.Enabled
@@ -68,6 +62,21 @@ return function(ctx)
             F.releaseHold()
             Raid.Status = "Match ended; preparing replay"
         end
+        if not F.character() then
+            F.releaseHold()
+            if Raid.RoundFinished and C.AutoReplay and now >= (Raid.NextReplayAt or 0) then
+                local blocked = false
+                if ctx.WebhookPauseReplay then
+                    local ok, value = pcall(ctx.WebhookPauseReplay)
+                    blocked = ok and value == true
+                end
+                if not blocked then F.raidReplay() end
+            else
+                Raid.Status = "Waiting for character"
+            end
+            return
+        end
+
         if Raid.ReplayUntil > 0 and now >= Raid.ReplayUntil then
             Raid.ReplayUntil = 0
         end
