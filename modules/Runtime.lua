@@ -146,7 +146,7 @@ return function(ctx)
             Raid.Status = "Retrying Raid after an error"
         elseif mode == "Zzz" then
             Zzzz.Status = "Retrying Zzz World after an error"
-        elseif mode == "Trial" then
+        elseif mode == "Lift" then
             Lift.Status = "Retrying Trial after an error"
         end
         if now - (lastStepErrorAt[mode] or -math.huge) >= 12 then
@@ -177,7 +177,7 @@ return function(ctx)
                 safeStep("Zzz", F.zzzzStep)
             end
             if Lift.Enabled then
-                safeStep("Trial", F.liftStep)
+                safeStep("Lift", F.liftStep)
             end
             task.wait(0.05)
         end
@@ -293,7 +293,8 @@ return function(ctx)
                 end
 
                 local finished
-                local status, travelStatus
+                if replayMode == "Zzz" then
+                    local status, travelStatus
                     if ctx.ReadMatchStatus then
                         local ok, value, _, travel = pcall(ctx.ReadMatchStatus)
                         if ok then
@@ -352,11 +353,13 @@ return function(ctx)
                             remote:FireServer(1)
                         end)
                         if ok then
-                            infiniteAttempts += 1
-                            Zzzz.Status = "Retry requested ("
-                                .. tostring(infiniteAttempts) .. "); waiting for next round"
-                            if infiniteAttempts % 10 == 0 then
-                                warn("[Slow Hub] Zzz World is still waiting for a new round; retrying")
+                            if replayMode == "Zzz" then
+                                infiniteAttempts += 1
+                                Zzzz.Status = "Retry requested (" 
+                                    .. tostring(infiniteAttempts) .. "); waiting for next round"
+                                if infiniteAttempts % 10 == 0 then
+                                    warn("[Slow Hub] Zzz World is still waiting for a new round; retrying")
+                                end
                             end
                         elseif now - lastReplayWarnAt >= 12 then
                             lastReplayWarnAt = now
