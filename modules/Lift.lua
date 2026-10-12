@@ -108,7 +108,7 @@ return function(ctx)
         end)
         if not ok then
             Lift.NextFloorBusy = false
-            Lift.Status = "Next Floor request failed: " .. tostring(err)
+            Lift.Status = "Next-floor request failed: " .. tostring(err)
             return false
         end
 
@@ -117,7 +117,7 @@ return function(ctx)
         Lift.HadEnemies = false
         Lift.EmptySince = nil
         task.spawn(function()
-            -- Keep the character at the Lift prompt until the next wave is detected.
+            -- Keep the character at the Trial interaction prompt until the next wave is detected.
             -- Moving away immediately can interrupt the transition and cause wave bugs.
             if not Lift.PromptHolding then
                 bumpAndSettle()
@@ -144,7 +144,7 @@ return function(ctx)
         return ok
     end
 
-    local function fallbackToLift(lift, prompt)
+    local function fallbackToTrial(lift, prompt)
         local part = lift and (lift:IsA("BasePart") and lift or lift:FindFirstChildWhichIsA("BasePart", true))
         if not part then
             Lift.Status = "Trial interaction has no usable part"
@@ -236,7 +236,7 @@ return function(ctx)
             end
 
             -- Reach and activate Interact before requesting the next floor.
-            local activated = fallbackToLift(lift, prompt)
+            local activated = fallbackToTrial(lift, prompt)
             if activated then
                 if Lift.AutoNextFloor then
                     fireNextFloor()
