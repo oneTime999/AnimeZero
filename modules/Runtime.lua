@@ -183,6 +183,39 @@ return function(ctx)
         end
     end)
 
+    -- Rate-limited drop pickup, enabled only while a supported farm is active.
+    task.spawn(function()
+        local nextCollectAt = 0
+        local lastWarningAt = -math.huge
+        while S.Alive and not Fluent.Unloaded do
+            task.wait(0.25)
+            local active = (Raid.Enabled and allowed("Raids"))
+                or (Zzzz.Enabled and allowed("Zzz"))
+                or (Lift.Enabled and allowed("Lift"))
+            local now = os.clock()
+            if C.AutoCollectDrops and active and now >= nextCollectAt then
+                nextCollectAt = now + 1
+                local remote = RS:FindFirstChild("recoverDrop")
+                if not remote then
+                    local packets = RS:FindFirstChild("runPackets")
+                    remote = packets and packets:FindFirstChild("recoverDrop")
+                end
+                if remote and remote:IsA("RemoteEvent") then
+                    local ok, err = pcall(function()
+                        remote:FireServer(7)
+                    end)
+                    if not ok and now - lastWarningAt >= 15 then
+                        lastWarningAt = now
+                        warn("[Slow Hub] Auto Collect Drops error: " .. tostring(err))
+                    end
+                elseif now - lastWarningAt >= 15 then
+                    lastWarningAt = now
+                    warn("[Slow Hub] Auto Collect Drops: recoverDrop RemoteEvent not found")
+                end
+            end
+        end
+    end())
+
     -- Raid watchdog: an enabled farm can remain on a living but
     -- unresponsive target forever without this progress check.
     task.spawn(function()
