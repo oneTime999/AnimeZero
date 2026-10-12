@@ -128,6 +128,13 @@ return function(ctx)
         end
         info.Health = hp
 
+        -- Without readable HP there is no reliable way to prove that a
+        -- target is unresponsive. Do not skip it just because a timer elapsed:
+        -- some Story enemies expose no Humanoid/Health value to the client.
+        if hp == nil then
+            return false
+        end
+
         if now - info.LastProgress >= C.StaleTargetWait then
             S.Ignored[model] = true
             S.IgnoredStale += 1
