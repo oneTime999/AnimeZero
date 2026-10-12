@@ -255,9 +255,26 @@ return function(ctx)
         -- Prefer the explicit per-border coordinates configured in Core.lua.
         local dest = RubbleCoordinates[S.BorderNumber] or (main and main.Position)
         if not dest then return nil end
-        -- Apply the separate rubble offset only while Story is actively breaking a barrier.
+        -- Keep rubble spacing horizontal. Subtracting studs from Y made low
+        -- barriers place the character below the platform/map.
         if S.Enabled and S.Phase == "BREAK_RUBBLE" and C.Noclip then
-            dest = Vector3.new(dest.X, dest.Y - (C.RubbleDistance or 0), dest.Z)
+            local origin = main and main.Position or dest
+            local horizontal = Vector3.new(dest.X - origin.X, 0, dest.Z - origin.Z)
+            if horizontal.Magnitude < 0.05 then
+                local _, root = F.character()
+                if root then
+                    horizontal = Vector3.new(root.Position.X - origin.X, 0, root.Position.Z - origin.Z)
+                end
+            end
+            if horizontal.Magnitude < 0.05 then
+                horizontal = Vector3.new(0, 0, 1)
+            end
+            horizontal = horizontal.Unit
+            dest = Vector3.new(
+                origin.X + horizontal.X * (C.RubbleDistance or 8),
+                dest.Y,
+                origin.Z + horizontal.Z * (C.RubbleDistance or 8)
+            )
         elseif C.RubblePosition == "Above" or not C.Noclip then
             local cf, size = F.rubbleBounds(rubble)
             local safeY = dest.Y + C.RubbleAboveGap
