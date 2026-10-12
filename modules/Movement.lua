@@ -129,34 +129,38 @@ return function(ctx)
 
     local lastCombatPositionAt = nil
 
-    function F.enemyPosition(enemy)
+    function F.enemyPosition(enemy, positionOverride, distanceOverride, heightOverride)
         local part = F.partOf(enemy)
         if not part then return false end
 
-        local d = C.Distance
+        -- Mode overrides let Trial use one consistent offset without changing
+        -- the user's saved positioning settings for Raids or Zzz World.
+        local position = positionOverride or C.Position
+        local d = distanceOverride == nil and C.Distance or distanceOverride
+        local height = heightOverride == nil and C.Height or heightOverride
         local cf = part.CFrame
         local offset
-        if C.Position == "Inside" then
+        if position == "Inside" then
             offset = Vector3.zero
-        elseif C.Position == "Above" then
+        elseif position == "Above" then
             offset = Vector3.new(0, d + part.Size.Y * 0.5, 0)
-        elseif C.Position == "Below" then
+        elseif position == "Below" then
             offset = Vector3.new(0, -d - part.Size.Y * 0.5, 0)
-        elseif C.Position == "Front" then
+        elseif position == "Front" then
             offset = cf.LookVector * d
-        elseif C.Position == "Left" then
+        elseif position == "Left" then
             offset = -cf.RightVector * d
-        elseif C.Position == "Right" then
+        elseif position == "Right" then
             offset = cf.RightVector * d
         else
             offset = -cf.LookVector * d
         end
 
-        local pos = part.Position + offset + Vector3.new(0, C.Height, 0)
+        local pos = part.Position + offset + Vector3.new(0, height, 0)
         local look = Vector3.new(part.Position.X, pos.Y, part.Position.Z)
         local up = Vector3.yAxis
 
-        if C.Position == "Below" then
+        if position == "Below" then
             -- Face the enemy above instead of looking horizontally under the map.
             look = part.Position
             if (look - pos).Magnitude > 0.01 then
