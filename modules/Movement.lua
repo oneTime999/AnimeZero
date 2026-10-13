@@ -197,8 +197,8 @@ return function(ctx)
     end
 
     function F.applyNoclip()
-        local Lift = ctx.Lift
-        if not (Raid.Enabled or ctx.ZzzzWorld.Enabled or (Lift and Lift.Enabled))
+        local Lift, Story = ctx.Lift, ctx.Story
+        if not (Raid.Enabled or ctx.ZzzzWorld.Enabled or (Lift and Lift.Enabled) or (Story and Story.Enabled))
             or not C.Noclip then
             return
         end
