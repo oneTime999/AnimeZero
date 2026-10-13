@@ -116,12 +116,14 @@ return function(ctx)
         local running = (Raid.Enabled and 1 or 0)
             + (Zzzz.Enabled and 1 or 0)
             + (Lift.Enabled and 1 or 0)
+            + (Story.Enabled and 1 or 0)
         if running <= 1 then return end
 
         local selected = ctx.ActiveFarmMode
-        if selected ~= "Raids" and selected ~= "Zzz" and selected ~= "Lift" then
+        if selected ~= "Raids" and selected ~= "Zzz" and selected ~= "Lift" and selected ~= "Story" then
             selected = Raid.Enabled and "Raids"
                 or Lift.Enabled and "Lift"
+                or Story.Enabled and "Story"
                 or "Zzz"
         end
         switchToMode(selected)
