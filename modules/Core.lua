@@ -70,6 +70,15 @@ local Lift = {
     NextFloorAt = 0
 }
 
+local Story = {
+    Enabled = false,
+    Target = nil,
+    Status = "Disabled",
+    EmptySince = nil,
+    RubbleOffset = 10,
+    EnemyGap = 2.5
+}
+
 local Raid = {
     Enabled = false,
     Status = "Disabled",
@@ -93,7 +102,7 @@ local Skill = {
 return {
     Players = Players, RS = RS, WS = WS, RunService = RunService,
     VU = VU, Player = Player, Env = Env, VIM = VIM,
-    C = C, S = S, Raid = Raid, ZzzzWorld = ZzzzWorld, Lift = Lift, Skill = Skill,
+    C = C, S = S, Raid = Raid, ZzzzWorld = ZzzzWorld, Lift = Lift, Story = Story, Skill = Skill,
     Functions = {},
     FarmMonitor = {
         Mode = "Off",
