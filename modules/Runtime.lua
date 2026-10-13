@@ -4,6 +4,7 @@ return function(ctx)
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
     local Zzzz = ctx.ZzzzWorld
     local Lift = ctx.Lift
+    local Story = ctx.Story
     local F = ctx.Functions
     local function allowed(mode)
         return ctx.GameGuard and ctx.GameGuard.Allowed(mode) == true
@@ -178,6 +179,9 @@ return function(ctx)
             end
             if Lift.Enabled then
                 safeStep("Lift", F.liftStep)
+            end
+            if Story.Enabled then
+                safeStep("Story", F.storyStep)
             end
             task.wait(0.05)
         end
