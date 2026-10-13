@@ -8,7 +8,8 @@ return function(ctx)
     local MODES = {
         Raids = {Name = "Shadow Monarch", Value = "sololevelingraid"},
         Zzz = {Name = "Zzz World", Value = "infinite"},
-        Lift = {Name = "Endless Trial", Value = "lift"}
+        Lift = {Name = "Endless Trial", Value = "lift"},
+        Story = {Name = "Story", Value = "story"}
     }
 
     local function currentMode()
@@ -44,6 +45,10 @@ return function(ctx)
         if lift and lift:FindFirstChildWhichIsA("ProximityPrompt", true) then
             return "Lift"
         end
+        local map = world and world:FindFirstChild("Map")
+        local border = map and map:FindFirstChild("Border1")
+        local rubble = border and border:FindFirstChild("Rubble")
+        if rubble and WS:FindFirstChild("enemies") then return "Story" end
         return nil
     end
 
@@ -57,6 +62,13 @@ return function(ctx)
             local markers = world and world:FindFirstChild("Markers")
             local lift = markers and markers:FindFirstChild("Lift")
             return lift ~= nil and lift:FindFirstChildWhichIsA("ProximityPrompt", true) ~= nil
+        end
+        if mode == "Story" then
+            local world = WS:FindFirstChild("World")
+            local map = world and world:FindFirstChild("Map")
+            local border = map and map:FindFirstChild("Border1")
+            return border ~= nil and border:FindFirstChild("Rubble") ~= nil
+                and WS:FindFirstChild("enemies") ~= nil
         end
         return currentMode() == entry.Value
     end
