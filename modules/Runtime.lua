@@ -22,7 +22,7 @@ return function(ctx)
     local characterAddedConn, humanoidDiedConn
 
     local function queueFarmRecovery(reason)
-        if not S.Alive or not (Raid.Enabled or Zzzz.Enabled or Lift.Enabled) then return end
+        if not S.Alive or not (Raid.Enabled or Zzzz.Enabled or Lift.Enabled or Story.Enabled) then return end
         F.cancelTravel()
         F.releaseHold()
         if Raid.Enabled then
@@ -84,6 +84,8 @@ return function(ctx)
         Zzzz.Target = nil
         Lift.Enabled = false
         Lift.Target = nil
+        Story.Enabled = false
+        Story.Target = nil
         S.Alive = false
         F.cancelTravel()
         F.releaseHold()
@@ -100,7 +102,7 @@ return function(ctx)
 
     local lastTravelErrorAt = -math.huge
     S.holdConn = RunService.Heartbeat:Connect(function()
-        if S.Alive and Lift.Enabled then
+        if S.Alive and (Lift.Enabled or Story.Enabled) then
             local ok, err = pcall(F.updateTravel)
             if not ok then
                 F.cancelTravel()
@@ -112,7 +114,7 @@ return function(ctx)
         end
         if not S.Alive or not S.HoldCF or S.Travel
             or not ((Raid.Enabled and allowed("Raids"))
-                or (Zzzz.Enabled and allowed("Zzz")) or Lift.Enabled) then return end
+                or (Zzzz.Enabled and allowed("Zzz")) or Lift.Enabled or Story.Enabled) then return end
         local cf = S.HoldCF
         local char, root = F.character()
         if not char or not root then return end
@@ -130,7 +132,7 @@ return function(ctx)
     S.noclipConn = RunService.Stepped:Connect(function()
         if S.Alive and C.Noclip
             and ((Raid.Enabled and allowed("Raids"))
-                or (Zzzz.Enabled and allowed("Zzz")) or Lift.Enabled) then
+                or (Zzzz.Enabled and allowed("Zzz")) or Lift.Enabled or Story.Enabled) then
             pcall(F.applyNoclip)
         end
     end)
