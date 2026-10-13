@@ -7,7 +7,7 @@ return function(ctx)
 
 
     function F.attackM1()
-        if not C.M1 or not (Raid.Enabled or Zzzz.Enabled or (ctx.Lift and ctx.Lift.Enabled)) then return end
+        if not C.M1 or not (Raid.Enabled or Zzzz.Enabled or (ctx.Lift and ctx.Lift.Enabled) or (ctx.Story and ctx.Story.Enabled)) then return end
         local now = os.clock()
         if now - S.LastM1 < C.M1Interval then return end
         local remote = RS:FindFirstChild("performM1")
@@ -79,7 +79,7 @@ return function(ctx)
     end
 
     function F.autoSkills()
-        if not C.Skills or not (Raid.Enabled or Zzzz.Enabled or (ctx.Lift and ctx.Lift.Enabled)) then
+        if not C.Skills or not (Raid.Enabled or Zzzz.Enabled or (ctx.Lift and ctx.Lift.Enabled) or (ctx.Story and ctx.Story.Enabled)) then
             return
         end
 
