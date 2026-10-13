@@ -76,7 +76,7 @@ return function(ctx)
 
     function F.updateTravel()
         local trip = S.Travel
-        if not (ctx.Lift and ctx.Lift.Enabled) or not S.Alive or not trip then return end
+        if not ((ctx.Lift and ctx.Lift.Enabled) or (ctx.Story and ctx.Story.Enabled)) or not S.Alive or not trip then return end
         local char, root = F.character()
         if not char or not root then return end
         local now = os.clock()
