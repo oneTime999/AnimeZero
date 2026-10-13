@@ -4,6 +4,7 @@ return function(ctx)
     local C, S, Raid, Skill = ctx.C, ctx.S, ctx.Raid, ctx.Skill
     local Zzzz = ctx.ZzzzWorld
     local Lift = ctx.Lift
+    local Story = ctx.Story
     local F = ctx.Functions
     local Guard = assert(ctx.GameGuard, "GameGuard module is required")
 
@@ -25,6 +26,7 @@ return function(ctx)
     local Raids = Window:AddTab({Title = "Raids", Icon = "swords"})
     local ZzzzTab = Window:AddTab({Title = "Zzz World", Icon = "infinity"})
     local LiftTab = Window:AddTab({Title = "Trial", Icon = "arrow-up-down"})
+    local StoryTab = Window:AddTab({Title = "Story", Icon = "map"})
     local Combat = Window:AddTab({Title = "Combat", Icon = "flame"})
     local Settings = Window:AddTab({Title = "Settings", Icon = "settings"})
     local Webhooks = Window:AddTab({Title = "Webhooks", Icon = "bell"})
@@ -33,6 +35,7 @@ return function(ctx)
     local raidToggle
     local zzzzToggle
     local liftToggle
+    local storyToggle
 
     local function denyActivation(mode, toggle)
         if Guard.Allowed(mode) then return false end
@@ -100,6 +103,12 @@ return function(ctx)
             if zzzzToggle and zzzzToggle.Value then
                 zzzzToggle:SetValue(false)
             end
+        end
+
+        if selected ~= "Story" then
+            Story.Enabled = false
+            Story.Target = nil
+            if storyToggle and storyToggle.Value then storyToggle:SetValue(false) end
         end
     end
 
@@ -289,6 +298,36 @@ return function(ctx)
             Duration = 6
         })
     end)
+
+    StoryTab:AddSection("Story Waves")
+    storyToggle = StoryTab:AddToggle("AnimeZero_AutoStory", {
+        Title = "Auto Story",
+        Description = "Tracks living enemies and current Rubble barriers dynamically, using a 10-stud vertical offset.",
+        Default = false,
+        Callback = function(value)
+            if value then
+                switchToMode("Story")
+                Story.Enabled = true
+                Story.Target = nil
+                Story.EmptySince = nil
+                Story.Status = "Waiting for Story enemies"
+                F.cancelTravel()
+                F.releaseHold()
+                S.LastM1 = 0
+                for _, skill in ipairs(Skill) do skill.Last = -math.huge end
+                if F.resetSkillQueue then F.resetSkillQueue() end
+            else
+                Story.Enabled = false
+                Story.Target = nil
+                Story.EmptySince = nil
+                F.cancelTravel()
+                F.releaseHold()
+                if ctx.ActiveFarmMode == "Story" then ctx.ActiveFarmMode = nil end
+                if not Raid.Enabled and not Zzzz.Enabled and not Lift.Enabled then F.restoreCollisions() end
+                Story.Status = "Disabled"
+            end
+        end
+    })
 
     Combat:AddSection("Combat Automation")
 
