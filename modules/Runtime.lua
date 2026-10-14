@@ -35,6 +35,15 @@ return function(ctx)
             Lift.Target = nil
             Lift.Status = "Waiting for respawn"
         end
+        if Story.Enabled then
+            Story.Target = nil
+            Story.MoveEnemy = nil
+            Story.MovePhase = nil
+            Story.EnemyY = nil
+            Story.EmptySince = nil
+            Story.WaitingForWave = false
+            Story.Status = "Waiting for respawn"
+        end
         if Zzzz.Enabled then
             Zzzz.Target = nil
             Zzzz.LastHealth = nil
@@ -151,6 +160,8 @@ return function(ctx)
             Zzzz.Status = "Retrying Zzz World after an error"
         elseif mode == "Lift" then
             Lift.Status = "Retrying Trial after an error"
+        elseif mode == "Story" then
+            Story.Status = "Retrying Story after an error"
         end
         if now - (lastStepErrorAt[mode] or -math.huge) >= 12 then
             lastStepErrorAt[mode] = now
@@ -182,7 +193,7 @@ return function(ctx)
             if Lift.Enabled then
                 safeStep("Lift", F.liftStep)
             end
-            if Story.Enabled then
+            if Story.Enabled and allowed("Story") then
                 safeStep("Story", F.storyStep)
             end
             task.wait(0.05)
@@ -198,6 +209,7 @@ return function(ctx)
             local active = (Raid.Enabled and allowed("Raids"))
                 or (Zzzz.Enabled and allowed("Zzz"))
                 or (Lift.Enabled and allowed("Lift"))
+                or (Story.Enabled and allowed("Story"))
             local now = os.clock()
             if C.AutoCollectDrops and active and now >= nextCollectAt then
                 nextCollectAt = now + 1
