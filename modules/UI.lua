@@ -56,7 +56,8 @@ return function(ctx)
         for _, entry in ipairs({
             {Key = "Raids", State = Raid, Toggle = raidToggle},
             {Key = "Zzz", State = Zzzz, Toggle = zzzzToggle},
-            {Key = "Lift", State = Lift, Toggle = liftToggle}
+            {Key = "Lift", State = Lift, Toggle = liftToggle},
+            {Key = "Story", State = Story, Toggle = storyToggle}
         }) do
             if entry.State.Enabled and not Guard.Allowed(entry.Key) then
                 invalidSince[entry.Key] = invalidSince[entry.Key] or os.clock()
