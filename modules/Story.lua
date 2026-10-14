@@ -10,36 +10,53 @@ return function(ctx)
         return border and border:FindFirstChild("Rubble")
     end
 
-    local function currentRubble(root)
+    local function getRubbleDetails(root, wantedIndex)
         if not root then return nil end
-        local list = {}
+        local rubbleObjects = {}
+
         for _, object in ipairs(root:GetChildren()) do
             local index = tonumber(object.Name:match("^Rubble(%d+)$"))
-            if index then
-                table.insert(list, {object = object, index = index})
+            if index and (wantedIndex == nil or index == wantedIndex) then
+                table.insert(rubbleObjects, {Object = object, Index = index})
             end
         end
-        table.sort(list, function(a, b) return a.index < b.index end)
 
-        for _, entry in ipairs(list) do
+        table.sort(rubbleObjects, function(a, b)
+            return a.Index < b.Index
+        end)
+
+        for _, entry in ipairs(rubbleObjects) do
             local parts = {}
-            if entry.object:IsA("BasePart") and entry.object.Transparency < 1 then
-                table.insert(parts, entry.object)
+            if entry.Object:IsA("BasePart") and entry.Object.Transparency < 0.98 then
+                table.insert(parts, entry.Object)
             end
-            for _, part in ipairs(entry.object:GetDescendants()) do
-                if part:IsA("BasePart") and part.Transparency < 1 then
+
+            for _, part in ipairs(entry.Object:GetDescendants()) do
+                if part:IsA("BasePart") and part.Transparency < 0.98 then
                     table.insert(parts, part)
                 end
             end
+
             if #parts > 0 then
                 local minV = Vector3.new(math.huge, math.huge, math.huge)
                 local maxV = Vector3.new(-math.huge, -math.huge, -math.huge)
+
                 for _, part in ipairs(parts) do
-                    local p, h = part.Position, part.Size * 0.5
-                    minV = Vector3.new(math.min(minV.X,p.X-h.X), math.min(minV.Y,p.Y-h.Y), math.min(minV.Z,p.Z-h.Z))
-                    maxV = Vector3.new(math.max(maxV.X,p.X+h.X), math.max(maxV.Y,p.Y+h.Y), math.max(maxV.Z,p.Z+h.Z))
+                    local p = part.Position
+                    local half = part.Size * 0.5
+                    minV = Vector3.new(
+                        math.min(minV.X, p.X - half.X),
+                        math.min(minV.Y, p.Y - half.Y),
+                        math.min(minV.Z, p.Z - half.Z)
+                    )
+                    maxV = Vector3.new(
+                        math.max(maxV.X, p.X + half.X),
+                        math.max(maxV.Y, p.Y + half.Y),
+                        math.max(maxV.Z, p.Z + half.Z)
+                    )
                 end
-                return entry.object, entry.index, (minV + maxV) * 0.5
+
+                return entry.Object, entry.Index, (minV + maxV) * 0.5, parts
             end
         end
     end
@@ -49,42 +66,140 @@ return function(ctx)
         local found = {}
         if not folder then return found end
 
-        local function scan(container)
-            for _, enemy in ipairs(container:GetChildren()) do
-                if enemy:IsA("Model") then
-                    if F.living(enemy) and F.partOf(enemy) then
-                        table.insert(found, enemy)
-                    else
-                        scan(enemy)
+        -- The arena normally places enemy models directly in workspace.enemies.
+        -- Scan child folders too, but do not recurse into an enemy model.
+        local function scanFolder(container)
+            for _, object in ipairs(container:GetChildren()) do
+                if object:IsA("Model") then
+                    if F.living(object) and F.partOf(object) then
+                        table.insert(found, object)
                     end
-                elseif enemy:IsA("Folder") then
-                    scan(enemy)
+                elseif object:IsA("Folder") then
+                    scanFolder(object)
                 end
             end
         end
 
-        scan(folder)
+        scanFolder(folder)
         return found
     end
 
     local function nearest(enemies)
         local _, root = F.character()
         if not root then return nil end
-        local target, best = nil, math.huge
+
+        local target, bestDistance = nil, math.huge
         for _, enemy in ipairs(enemies) do
             local part = F.partOf(enemy)
             if part then
                 local distance = (part.Position - root.Position).Magnitude
-                if distance < best then target, best = enemy, distance end
+                if distance < bestDistance then
+                    target, bestDistance = enemy, distance
+                end
             end
         end
         return target
     end
 
+    local function resetEnemyTravel(target, root, part)
+        Story.MoveEnemy = target
+        Story.MovePhase = "Descend"
+        Story.EnemyY = math.min(
+            root.Position.Y,
+            part.Position.Y - part.Size.Y * 0.5 - (Story.EnemyGap or 2.5)
+        )
+        F.cancelTravel()
+        F.releaseHold()
+    end
+
+    local function positionUnderEnemy(target)
+        local _, root = F.character()
+        local part = F.partOf(target)
+        if not root or not part then
+            return false
+        end
+
+        local desiredY = part.Position.Y - part.Size.Y * 0.5 - (Story.EnemyGap or 2.5)
+
+        if Story.MoveEnemy ~= target or not Story.MovePhase then
+            resetEnemyTravel(target, root, part)
+        elseif Story.MovePhase == "Attack" then
+            local deltaXZ = Vector2.new(
+                root.Position.X - part.Position.X,
+                root.Position.Z - part.Position.Z
+            ).Magnitude
+
+            -- If the target moves away or below us, repeat the safe two-stage move.
+            if deltaXZ > 4 or root.Position.Y > desiredY + 1 then
+                resetEnemyTravel(target, root, part)
+            end
+        end
+
+        if Story.MovePhase == "Descend" then
+            local descendPosition = Vector3.new(
+                root.Position.X,
+                Story.EnemyY,
+                root.Position.Z
+            )
+            local arrived = F.travelTo(
+                CFrame.new(descendPosition),
+                "Story:EnemyDescend:" .. target.Name,
+                0
+            )
+
+            if arrived then
+                Story.MovePhase = "Approach"
+                F.cancelTravel()
+                F.releaseHold()
+            end
+            return false
+        end
+
+        if Story.MovePhase == "Approach" then
+            local attackPosition = Vector3.new(
+                part.Position.X,
+                Story.EnemyY,
+                part.Position.Z
+            )
+            local arrived = F.travelTo(
+                CFrame.new(attackPosition),
+                "Story:EnemyApproach:" .. target.Name,
+                0
+            )
+
+            if arrived then
+                F.setPosition(CFrame.new(attackPosition), 1, true)
+                Story.MovePhase = "Attack"
+                return true
+            end
+            return false
+        end
+
+        if Story.MovePhase == "Attack" then
+            -- Keep a stable position under a moving NPC. If it moves beyond
+            -- the threshold above, the descend-then-approach sequence restarts.
+            local attackPosition = Vector3.new(part.Position.X, Story.EnemyY, part.Position.Z)
+            F.setPosition(CFrame.new(attackPosition), 1, true)
+            return true
+        end
+
+        return false
+    end
+
+    local function resetEnemyState()
+        Story.Target = nil
+        Story.MoveEnemy = nil
+        Story.MovePhase = nil
+        Story.EnemyY = nil
+        F.cancelTravel()
+        F.releaseHold()
+    end
+
     function F.storyStep()
         if not Story.Enabled then return end
-        local rubble = rubbleRoot()
-        if not rubble then
+
+        local rootFolder = rubbleRoot()
+        if not rootFolder then
             Story.Status = "Waiting for Rubble folder"
             return
         end
@@ -92,40 +207,80 @@ return function(ctx)
         local enemies = livingEnemies()
         if #enemies > 0 then
             Story.EmptySince = nil
+            Story.WaitingForWave = false
+            Story.ActiveRubbleIndex = nil
+
             local target = nearest(enemies)
-            Story.Target = target
-            if target then
-                if F.enemyPosition(target, "Below", Story.EnemyGap or 2.5, 0) and F.living(target) then
-                    Story.Status = "Attacking enemy: " .. target.Name
-                    F.attackM1()
-                else
-                    Story.Status = "Moving below enemy: " .. target.Name
-                end
+            if not target then
+                Story.Status = "Waiting for a valid enemy target"
+                return
+            end
+
+            if Story.Target ~= target then
+                resetEnemyState()
+                Story.Target = target
+            end
+
+            if F.living(target) and positionUnderEnemy(target) then
+                Story.Status = "Attacking from below: " .. target.Name
+                F.attackM1()
+            else
+                Story.Status = "Descending, then approaching below: " .. target.Name
             end
             return
         end
 
-        Story.Target = nil
+        resetEnemyState()
         Story.EmptySince = Story.EmptySince or os.clock()
+
+        if Story.WaitingForWave then
+            Story.Status = "Barrier cleared; waiting for next wave"
+            return
+        end
+
         if os.clock() - Story.EmptySince < 1 then
             Story.Status = "Confirming wave clear"
             return
         end
 
-        local object, index, center = currentRubble(rubble)
-        if not object then
-            Story.Status = "Waiting for next Rubble to appear"
+        if Story.ActiveRubbleIndex then
+            local object, index, center = getRubbleDetails(rootFolder, Story.ActiveRubbleIndex)
+            if not object then
+                Story.Status = "Rubble" .. tostring(Story.ActiveRubbleIndex) .. " cleared; waiting for next wave"
+                Story.ActiveRubbleIndex = nil
+                Story.WaitingForWave = true
+                F.cancelTravel()
+                F.releaseHold()
+                return
+            end
+        else
+            local object, index = getRubbleDetails(rootFolder)
+            if not object then
+                Story.Status = "Waiting for the next active rubble"
+                return
+            end
+            Story.ActiveRubbleIndex = index
+        end
+
+        local object, index, center = getRubbleDetails(rootFolder, Story.ActiveRubbleIndex)
+        if not object or not center then
+            Story.Status = "Waiting for active Rubble" .. tostring(Story.ActiveRubbleIndex)
             return
         end
 
         local destination = center - Vector3.new(0, Story.RubbleOffset or 10, 0)
-        local arrived = F.travelTo(CFrame.new(destination), "Story:Rubble" .. index)
+        local arrived = F.travelTo(
+            CFrame.new(destination),
+            "Story:Rubble:" .. tostring(index),
+            0
+        )
+
         if arrived then
-            F.setPosition(CFrame.new(destination), 0.8, true)
-            Story.Status = "At Rubble" .. index
+            F.setPosition(CFrame.new(destination), 1, true)
+            Story.Status = "Attacking Rubble" .. tostring(index)
             F.attackM1()
         else
-            Story.Status = "Moving to Rubble" .. index
+            Story.Status = "Moving to Rubble" .. tostring(index) .. " (10 studs below)"
         end
     end
 end
