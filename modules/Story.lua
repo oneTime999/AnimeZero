@@ -1,7 +1,35 @@
 return function(ctx)
     local WS = ctx.WS
+    local Player = ctx.Player
     local Story = ctx.Story
     local F = ctx.Functions
+
+    local function readHud()
+        local playerGui = Player and Player:FindFirstChildOfClass("PlayerGui")
+        local hud = playerGui and playerGui:FindFirstChild("RoundHUD")
+        local container = hud and hud:FindFirstChild("Container")
+        local topPart = container and container:FindFirstChild("TopPart")
+        local remainingFrame = topPart and topPart:FindFirstChild("RemainingFrame")
+        local label = remainingFrame and remainingFrame:FindFirstChild("EnemyCount")
+
+        if not label or not (label:IsA("TextLabel") or label:IsA("TextButton")) then
+            return nil
+        end
+
+        local text = label.Text or ""
+        local lower = string.lower(text)
+        local area, total = lower:match("area%s*(%d+)%s*/%s*(%d+)")
+        local left = lower:match("(%d+)%s+left")
+        local breakRubble = string.find(lower, "break the rubble to continue", 1, true) ~= nil
+
+        return {
+            Text = text,
+            Area = tonumber(area),
+            TotalAreas = tonumber(total),
+            Left = tonumber(left),
+            BreakRubble = breakRubble
+        }
+    end
 
     local function rubbleRoot()
         local world = WS:FindFirstChild("World")
@@ -66,8 +94,6 @@ return function(ctx)
         local found = {}
         if not folder then return found end
 
-        -- The arena normally places enemy models directly in workspace.enemies.
-        -- Scan child folders too, but do not recurse into an enemy model.
         local function scanFolder(container)
             for _, object in ipairs(container:GetChildren()) do
                 if object:IsA("Model") then
@@ -104,7 +130,10 @@ return function(ctx)
     local function resetEnemyTravel(target, root, part)
         Story.MoveEnemy = target
         Story.MovePhase = "Descend"
-        Story.EnemyY = part.Position.Y - part.Size.Y * 0.5 - (Story.EnemyGap or 2.5)
+        local targetY = part.Position.Y - part.Size.Y * 0.5 - (Story.EnemyGap or 2.5)
+        -- First lower vertically at the current X/Z. If already below the
+        -- target's feet, keep the current lower height rather than rising.
+        Story.EnemyY = math.min(root.Position.Y, targetY)
         F.cancelTravel()
         F.releaseHold()
     end
@@ -112,9 +141,7 @@ return function(ctx)
     local function positionUnderEnemy(target)
         local _, root = F.character()
         local part = F.partOf(target)
-        if not root or not part then
-            return false
-        end
+        if not root or not part then return false end
 
         local desiredY = part.Position.Y - part.Size.Y * 0.5 - (Story.EnemyGap or 2.5)
 
@@ -126,18 +153,13 @@ return function(ctx)
                 root.Position.Z - part.Position.Z
             ).Magnitude
 
-            -- If the target moves away or below us, repeat the safe two-stage move.
             if deltaXZ > 4 or math.abs(root.Position.Y - desiredY) > 1.5 then
                 resetEnemyTravel(target, root, part)
             end
         end
 
         if Story.MovePhase == "Descend" then
-            local descendPosition = Vector3.new(
-                root.Position.X,
-                Story.EnemyY,
-                root.Position.Z
-            )
+            local descendPosition = Vector3.new(root.Position.X, Story.EnemyY, root.Position.Z)
             local arrived = F.travelTo(
                 CFrame.new(descendPosition),
                 "Story:EnemyDescend:" .. target.Name,
@@ -153,11 +175,7 @@ return function(ctx)
         end
 
         if Story.MovePhase == "Approach" then
-            local attackPosition = Vector3.new(
-                part.Position.X,
-                Story.EnemyY,
-                part.Position.Z
-            )
+            local attackPosition = Vector3.new(part.Position.X, Story.EnemyY, part.Position.Z)
             local arrived = F.travelTo(
                 CFrame.new(attackPosition),
                 "Story:EnemyApproach:" .. target.Name,
@@ -172,13 +190,7 @@ return function(ctx)
             return false
         end
 
-        if Story.MovePhase == "Attack" then
-            -- Hold the established position. If the NPC moves enough to matter,
-            -- the threshold check above restarts the two-stage approach.
-            return true
-        end
-
-        return false
+        return Story.MovePhase == "Attack"
     end
 
     local function resetEnemyState()
@@ -192,24 +204,55 @@ return function(ctx)
         end
     end
 
+    local function clearRubbleState()
+        Story.ActiveRubbleIndex = nil
+        Story.RubbleWasTargeted = false
+        Story.WaitingForWave = false
+        F.cancelTravel()
+        F.releaseHold()
+    end
+
     function F.storyStep()
         if not Story.Enabled then return end
 
-        local rootFolder = rubbleRoot()
-        if not rootFolder then
-            Story.Status = "Waiting for Rubble folder"
+        local hud = readHud()
+        if not hud then
+            Story.Status = "Waiting for RoundHUD EnemyCount"
             return
         end
 
-        local enemies = livingEnemies()
-        if #enemies > 0 then
+        -- Area and count are read from the actual round HUD, not inferred
+        -- from the current contents of workspace.enemies.
+        if hud.Area then
+            if Story.CurrentArea and Story.CurrentArea ~= hud.Area then
+                clearRubbleState()
+                Story.EmptySince = nil
+            end
+            Story.CurrentArea = hud.Area
+            Story.TotalAreas = hud.TotalAreas
+        end
+
+        local rootFolder = rubbleRoot()
+        if not rootFolder then
+            Story.Status = "Waiting for World.Map.Border1.Rubble"
+            return
+        end
+
+        if hud.Left ~= nil and hud.Left > 0 then
+            clearRubbleState()
             Story.EmptySince = nil
-            Story.WaitingForWave = false
-            Story.ActiveRubbleIndex = nil
+
+            local enemies = livingEnemies()
+            if #enemies == 0 then
+                Story.Target = nil
+                resetEnemyState()
+                Story.Status = "HUD says " .. hud.Left .. " left; waiting for enemy spawn"
+                return
+            end
 
             local target = nearest(enemies)
             if not target then
-                Story.Status = "Waiting for a valid enemy target"
+                Story.Status = "Waiting for a valid enemy target (" .. hud.Left .. " left)"
                 return
             end
 
@@ -227,43 +270,46 @@ return function(ctx)
             return
         end
 
+        if not hud.BreakRubble then
+            resetEnemyState()
+            Story.Status = "Waiting for HUD: " .. hud.Text
+            return
+        end
+
         resetEnemyState()
-        Story.EmptySince = Story.EmptySince or os.clock()
+        Story.EmptySince = nil
 
         if Story.WaitingForWave then
-            Story.Status = "Barrier cleared; waiting for next wave"
+            Story.Status = "Rubble cleared; waiting for the next Area counter"
             return
         end
 
-        if os.clock() - Story.EmptySince < 1 then
-            Story.Status = "Confirming wave clear"
-            return
+        local wantedIndex = Story.CurrentArea or Story.ActiveRubbleIndex
+        local object, index, center = getRubbleDetails(rootFolder, wantedIndex)
+
+        -- If Auto Story starts while the HUD is already on the break prompt,
+        -- use the first visible RubbleN as a fallback to establish the area index.
+        if not object and not wantedIndex then
+            object, index, center = getRubbleDetails(rootFolder)
+            if index then
+                Story.CurrentArea = index
+            end
         end
 
-        if Story.ActiveRubbleIndex then
-            local object, index, center = getRubbleDetails(rootFolder, Story.ActiveRubbleIndex)
-            if not object then
-                Story.Status = "Rubble" .. tostring(Story.ActiveRubbleIndex) .. " cleared; waiting for next wave"
-                Story.ActiveRubbleIndex = nil
+        if not object or not center then
+            if Story.RubbleWasTargeted then
                 Story.WaitingForWave = true
                 F.cancelTravel()
                 F.releaseHold()
-                return
+                Story.Status = "Rubble" .. tostring(wantedIndex) .. " disappeared; waiting for next Area"
+            else
+                Story.Status = "Waiting for active Rubble" .. tostring(wantedIndex or "?")
             end
-        else
-            local object, index = getRubbleDetails(rootFolder)
-            if not object then
-                Story.Status = "Waiting for the next active rubble"
-                return
-            end
-            Story.ActiveRubbleIndex = index
-        end
-
-        local object, index, center = getRubbleDetails(rootFolder, Story.ActiveRubbleIndex)
-        if not object or not center then
-            Story.Status = "Waiting for active Rubble" .. tostring(Story.ActiveRubbleIndex)
             return
         end
+
+        Story.ActiveRubbleIndex = index
+        Story.RubbleWasTargeted = true
 
         local destination = center - Vector3.new(0, Story.RubbleOffset or 10, 0)
         local arrived = F.travelTo(
@@ -274,10 +320,10 @@ return function(ctx)
 
         if arrived then
             F.setPosition(CFrame.new(destination), 1, true)
-            Story.Status = "Attacking Rubble" .. tostring(index)
+            Story.Status = "Attacking Rubble" .. tostring(index) .. " (-10 studs)"
             F.attackM1()
         else
-            Story.Status = "Moving to Rubble" .. tostring(index) .. " (10 studs below)"
+            Story.Status = "Moving to Rubble" .. tostring(index) .. " (-10 studs)"
         end
     end
 end
