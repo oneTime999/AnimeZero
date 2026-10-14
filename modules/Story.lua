@@ -205,11 +205,20 @@ return function(ctx)
     end
 
     local function clearRubbleState()
+        local hadRubbleState = Story.ActiveRubbleIndex ~= nil
+            or Story.RubbleWasTargeted == true
+            or Story.WaitingForWave == true
+
         Story.ActiveRubbleIndex = nil
         Story.RubbleWasTargeted = false
         Story.WaitingForWave = false
-        F.cancelTravel()
-        F.releaseHold()
+
+        -- Do not interrupt the enemy's descend/approach tween on every HUD
+        -- update. Cancel movement only when leaving an actual rubble phase.
+        if hadRubbleState then
+            F.cancelTravel()
+            F.releaseHold()
+        end
     end
 
     function F.storyStep()
