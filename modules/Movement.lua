@@ -42,7 +42,7 @@ return function(ctx)
         return ok
     end
 
-    function F.travelTo(cf, tag)
+    function F.travelTo(cf, tag, arc)
         if S.ArrivedTag == tag then
             local _, root = F.character()
             if root and (root.Position - cf.Position).Magnitude <= 4 then
@@ -68,6 +68,7 @@ return function(ctx)
             Goal = cf,
             Started = os.clock(),
             Duration = duration,
+            Arc = arc,
             ArrivalAt = nil,
             LastDrift = nil
         }
@@ -96,7 +97,8 @@ return function(ctx)
         local pos = trip.Start.Position:Lerp(trip.Goal.Position, eased)
 
         if trip.Duration > 0 then
-            pos += Vector3.new(0, math.sin(math.pi * alpha) * C.TravelArc, 0)
+            local arc = trip.Arc == nil and C.TravelArc or trip.Arc
+            pos += Vector3.new(0, math.sin(math.pi * alpha) * arc, 0)
         end
         local frame = CFrame.new(pos) * trip.Goal.Rotation
 
