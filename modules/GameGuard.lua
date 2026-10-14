@@ -64,11 +64,15 @@ return function(ctx)
             return lift ~= nil and lift:FindFirstChildWhichIsA("ProximityPrompt", true) ~= nil
         end
         if mode == "Story" then
+            -- The HUD persists through enemy spawns and rubble transitions;
+            -- the enemies folder may be temporarily empty or recreated.
             local world = WS:FindFirstChild("World")
             local map = world and world:FindFirstChild("Map")
             local border = map and map:FindFirstChild("Border1")
-            return border ~= nil and border:FindFirstChild("Rubble") ~= nil
-                and WS:FindFirstChild("enemies") ~= nil
+            local rubble = border and border:FindFirstChild("Rubble")
+            local playerGui = Player:FindFirstChildOfClass("PlayerGui")
+            local hud = playerGui and playerGui:FindFirstChild("RoundHUD")
+            return rubble ~= nil and hud ~= nil
         end
         return currentMode() == entry.Value
     end
@@ -95,8 +99,9 @@ return function(ctx)
             local world = WS:FindFirstChild("World")
             local map = world and world:FindFirstChild("Map")
             local border = map and map:FindFirstChild("Border1")
-            if not border or not border:FindFirstChild("Rubble")
-                or not WS:FindFirstChild("enemies") then
+            local playerGui = Player:FindFirstChildOfClass("PlayerGui")
+            local hud = playerGui and playerGui:FindFirstChild("RoundHUD")
+            if not border or not border:FindFirstChild("Rubble") or not hud then
                 return "Enter the Story arena before enabling Auto Story"
             end
             return "Allowed"
