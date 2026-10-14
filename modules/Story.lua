@@ -48,11 +48,22 @@ return function(ctx)
         local folder = F.enemyFolder()
         local found = {}
         if not folder then return found end
-        for _, enemy in ipairs(folder:GetChildren()) do
-            if enemy:IsA("Model") and F.living(enemy) and F.partOf(enemy) then
-                table.insert(found, enemy)
+
+        local function scan(container)
+            for _, enemy in ipairs(container:GetChildren()) do
+                if enemy:IsA("Model") then
+                    if F.living(enemy) and F.partOf(enemy) then
+                        table.insert(found, enemy)
+                    else
+                        scan(enemy)
+                    end
+                elseif enemy:IsA("Folder") then
+                    scan(enemy)
+                end
             end
         end
+
+        scan(folder)
         return found
     end
 
@@ -87,7 +98,6 @@ return function(ctx)
                 if F.enemyPosition(target, "Below", Story.EnemyGap or 2.5, 0) and F.living(target) then
                     Story.Status = "Attacking enemy: " .. target.Name
                     F.attackM1()
-                    F.autoSkills()
                 else
                     Story.Status = "Moving below enemy: " .. target.Name
                 end
@@ -114,7 +124,6 @@ return function(ctx)
             F.setPosition(CFrame.new(destination), 0.8, true)
             Story.Status = "At Rubble" .. index
             F.attackM1()
-            F.autoSkills()
         else
             Story.Status = "Moving to Rubble" .. index
         end
