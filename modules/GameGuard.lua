@@ -91,6 +91,16 @@ return function(ctx)
             end
             return "Allowed"
         end
+        if mode == "Story" then
+            local world = WS:FindFirstChild("World")
+            local map = world and world:FindFirstChild("Map")
+            local border = map and map:FindFirstChild("Border1")
+            if not border or not border:FindFirstChild("Rubble")
+                or not WS:FindFirstChild("enemies") then
+                return "Enter the Story arena before enabling Auto Story"
+            end
+            return "Allowed"
+        end
         if currentMode() ~= entry.Value then
             return "Current match is not " .. entry.Name
         end
