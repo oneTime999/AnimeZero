@@ -316,9 +316,12 @@ return function(ctx)
                 Story.MovePhase = nil
                 Story.EnemyY = nil
                 Story.EmptySince = nil
+                Story.CurrentArea = nil
+                Story.TotalAreas = nil
                 Story.WaitingForWave = false
                 Story.ActiveRubbleIndex = nil
-                Story.Status = "Waiting for Story enemies"
+                Story.RubbleWasTargeted = false
+                Story.Status = "Waiting for Story HUD"
                 F.cancelTravel()
                 F.releaseHold()
                 S.LastM1 = 0
@@ -331,8 +334,11 @@ return function(ctx)
                 Story.MovePhase = nil
                 Story.EnemyY = nil
                 Story.EmptySince = nil
+                Story.CurrentArea = nil
+                Story.TotalAreas = nil
                 Story.WaitingForWave = false
                 Story.ActiveRubbleIndex = nil
+                Story.RubbleWasTargeted = false
                 F.cancelTravel()
                 F.releaseHold()
                 if ctx.ActiveFarmMode == "Story" then ctx.ActiveFarmMode = nil end
