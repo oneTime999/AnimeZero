@@ -312,7 +312,12 @@ return function(ctx)
                 switchToMode("Story")
                 Story.Enabled = true
                 Story.Target = nil
+                Story.MoveEnemy = nil
+                Story.MovePhase = nil
+                Story.EnemyY = nil
                 Story.EmptySince = nil
+                Story.WaitingForWave = false
+                Story.ActiveRubbleIndex = nil
                 Story.Status = "Waiting for Story enemies"
                 F.cancelTravel()
                 F.releaseHold()
@@ -322,7 +327,12 @@ return function(ctx)
             else
                 Story.Enabled = false
                 Story.Target = nil
+                Story.MoveEnemy = nil
+                Story.MovePhase = nil
+                Story.EnemyY = nil
                 Story.EmptySince = nil
+                Story.WaitingForWave = false
+                Story.ActiveRubbleIndex = nil
                 F.cancelTravel()
                 F.releaseHold()
                 if ctx.ActiveFarmMode == "Story" then ctx.ActiveFarmMode = nil end
