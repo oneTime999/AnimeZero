@@ -104,10 +104,7 @@ return function(ctx)
     local function resetEnemyTravel(target, root, part)
         Story.MoveEnemy = target
         Story.MovePhase = "Descend"
-        Story.EnemyY = math.min(
-            root.Position.Y,
-            part.Position.Y - part.Size.Y * 0.5 - (Story.EnemyGap or 2.5)
-        )
+        Story.EnemyY = part.Position.Y - part.Size.Y * 0.5 - (Story.EnemyGap or 2.5)
         F.cancelTravel()
         F.releaseHold()
     end
@@ -130,7 +127,7 @@ return function(ctx)
             ).Magnitude
 
             -- If the target moves away or below us, repeat the safe two-stage move.
-            if deltaXZ > 4 or root.Position.Y > desiredY + 1 then
+            if deltaXZ > 4 or math.abs(root.Position.Y - desiredY) > 1.5 then
                 resetEnemyTravel(target, root, part)
             end
         end
