@@ -176,10 +176,8 @@ return function(ctx)
         end
 
         if Story.MovePhase == "Attack" then
-            -- Keep a stable position under a moving NPC. If it moves beyond
-            -- the threshold above, the descend-then-approach sequence restarts.
-            local attackPosition = Vector3.new(part.Position.X, Story.EnemyY, part.Position.Z)
-            F.setPosition(CFrame.new(attackPosition), 1, true)
+            -- Hold the established position. If the NPC moves enough to matter,
+            -- the threshold check above restarts the two-stage approach.
             return true
         end
 
@@ -188,11 +186,13 @@ return function(ctx)
 
     local function resetEnemyState()
         Story.Target = nil
-        Story.MoveEnemy = nil
-        Story.MovePhase = nil
-        Story.EnemyY = nil
-        F.cancelTravel()
-        F.releaseHold()
+        if Story.MoveEnemy or Story.MovePhase then
+            Story.MoveEnemy = nil
+            Story.MovePhase = nil
+            Story.EnemyY = nil
+            F.cancelTravel()
+            F.releaseHold()
+        end
     end
 
     function F.storyStep()
