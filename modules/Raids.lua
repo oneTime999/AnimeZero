@@ -65,7 +65,7 @@ return function(ctx)
 
     -- Height (studs) above the last enemy's position where the character waits
     -- between waves. Raise it if the character still sits too low.
-    local GROUND_OFFSET = 4
+    local GROUND_OFFSET = 8
 
     local function bathtubHud()
         local gui = Player:FindFirstChildOfClass("PlayerGui")
