@@ -29,7 +29,7 @@ return function(ctx)
         Acrylic = false,
         Theme = "Dark",
         MinimizeKey = Enum.KeyCode.LeftControl,
-        Icon = 120971608584426
+        Icon = 113561419067782
     })
 
     -- The open/close circle now lives in the PcdFnlBossUI library itself
